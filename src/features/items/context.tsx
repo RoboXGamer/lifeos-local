@@ -37,16 +37,11 @@ export interface ItemInput {
   tags: string[];
 }
 
-interface ProfileSummary {
-  isAnonymous: boolean;
-}
-
 interface ItemModel {
   activeItems: readonly ItemView[];
   archivedItems: readonly ItemView[];
   areas: Accessor<Doc<"areas">[]>;
   tags: Accessor<Doc<"tags">[]>;
-  profile: Accessor<ProfileSummary | undefined>;
   error: Accessor<string | null>;
   clearError: () => void;
   inboxItems: Accessor<ItemView[]>;
@@ -131,8 +126,6 @@ export function ItemProvider(props: ParentProps) {
     },
     { initialValue: [] },
   );
-  const profileSource = createQuery(api.profiles.current, {}, {});
-
   const [activeItems, setActiveItems] = createOptimisticStore<ItemView[]>(
     () => activeSource() ?? [],
     [],
@@ -330,7 +323,6 @@ export function ItemProvider(props: ParentProps) {
     archivedItems,
     areas: () => areaSource() ?? [],
     tags: () => tagSource() ?? [],
-    profile: () => profileSource(),
     error,
     clearError: () => setError(null),
     inboxItems: () =>

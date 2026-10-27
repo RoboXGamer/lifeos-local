@@ -172,21 +172,18 @@ export function InboxPanel(props: {
           </For>
         </div>
 
-        <Show
-          when={items.profile()?.isAnonymous && items.inboxItems().length >= 3}
-        >
+        <Show when={items.inboxItems().length >= 3}>
           <div class="inbox-account-prompt">
             <span>
               <Icon name="sparkle" size={17} />
             </span>
             <div>
-              <strong>Keep your space yours</strong>
+              <strong>Kept on this device</strong>
               <p>
-                You can continue now. Sign in later to make this space
-                permanent.
+                Everything you capture lives in a local database. No account,
+                no sync.
               </p>
             </div>
-            <a href="/app/login">Log in</a>
           </div>
         </Show>
       </aside>
