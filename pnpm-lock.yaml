@@ -166,6 +166,9 @@ importers:
 
   .:
     dependencies:
+      '@solidjs/router':
+        specifier: 2.0.0-next.42
+        version: 2.0.0-next.42(@solidjs/web@2.0.0-rc.18(solid-js@2.0.0-rc.18))(solid-js@2.0.0-rc.18)
       '@solidjs/web':
         specifier: 2.0.0-rc.18
         version: 2.0.0-rc.18(solid-js@2.0.0-rc.18)
@@ -181,9 +184,15 @@ importers:
       '@tauri-apps/plugin-updater':
         specifier: ^2.14.0
         version: 2.14.0
+      nanoid:
+        specifier: 6.0.2
+        version: 6.0.2
       solid-js:
         specifier: 2.0.0-rc.18
         version: 2.0.0-rc.18
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@solidjs/diagnostics':
         specifier: 2.0.0-rc.18
@@ -476,6 +485,16 @@ packages:
       vitest: '>=2.0.0'
     peerDependenciesMeta:
       vitest:
+        optional: true
+
+  '@solidjs/router@2.0.0-next.42':
+    resolution: {integrity: sha512-UMeBFTLk5DzIi4Kj0lmoyB0JmGXDB1gYVPwKXkyaHJccjXX6LbFOJkNoJCRzm7K88/NxR8rh10fjbJO6vzfxXA==}
+    peerDependencies:
+      '@solidjs/web': ^2.0.0-rc.17
+      filesystem-routing: '>=0.4.0'
+      solid-js: ^2.0.0-rc.17
+    peerDependenciesMeta:
+      filesystem-routing:
         optional: true
 
   '@solidjs/signals@2.0.0-rc.18':
@@ -899,6 +918,11 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
+  nanoid@6.0.2:
+    resolution: {integrity: sha512-hIvVOb9Qr1p/9CNNLOe0OlWvgx/ziTsVwKN/GDSsuArN2K0wDiafP3s0SWmsm7o2BdnyS8Z9Z64NFBUbn6ziBg==}
+    engines: {node: ^22 || ^24 || >=26}
+    hasBin: true
+
   node-releases@2.0.60:
     resolution: {integrity: sha512-OmO8+GM1JUZqXET720VrJCwkjUCXmCMQm0Z3UDDRbfNLHS4NEAvY60j5jiFv0tkKw2PNNlqOLhahVmwJIOLDIQ==}
     engines: {node: '>=18'}
@@ -1018,6 +1042,9 @@ packages:
 
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
+
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
 snapshots:
 
@@ -1271,6 +1298,11 @@ snapshots:
   '@solidjs/diagnostics@2.0.0-rc.18(@solidjs/web@2.0.0-rc.18(solid-js@2.0.0-rc.18))(solid-js@2.0.0-rc.18)':
     dependencies:
       '@solidjs/signals': 2.0.0-rc.18
+      '@solidjs/web': 2.0.0-rc.18(solid-js@2.0.0-rc.18)
+      solid-js: 2.0.0-rc.18
+
+  '@solidjs/router@2.0.0-next.42(@solidjs/web@2.0.0-rc.18(solid-js@2.0.0-rc.18))(solid-js@2.0.0-rc.18)':
+    dependencies:
       '@solidjs/web': 2.0.0-rc.18(solid-js@2.0.0-rc.18)
       solid-js: 2.0.0-rc.18
 
@@ -1557,6 +1589,8 @@ snapshots:
 
   nanoid@3.3.20: {}
 
+  nanoid@6.0.2: {}
+
   node-releases@2.0.60: {}
 
   parse5@7.3.0:
@@ -1666,3 +1700,5 @@ snapshots:
       vite: 8.3.5(@types/node@26.6.5)
 
   yallist@3.1.1: {}
+
+  zod@4.6.7: {}

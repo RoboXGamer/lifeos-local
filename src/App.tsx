@@ -1,179 +1,175 @@
-import { createMemo, createSignal, Errored, For, Loading, onSettled, Show } from 'solid-js'
-import { addTodo, deleteTodo, listTodos, toggleTodo } from './db'
-import { createUpdater } from './updates'
-import './App.css'
+import { createEffect, createSignal, For, onSettled, Show, type ParentProps } from "solid-js";
+import "./App.css";
+import { Icon } from "./Icon";
+import { useLocation } from "@solidjs/router";
+import { WorkspaceProvider } from "./features/workspaces/context";
+import { WorkspaceMenu } from "./features/workspaces/WorkspaceMenu";
+import { ItemProvider } from "./features/items/context";
+import { InboxPanel } from "./features/items/InboxPanel";
+import { ItemInspector } from "./features/items/ItemInspector";
+import { SearchPanel } from "./features/items/SearchPanel";
+import { useItemPanelRoute } from "./features/items/routing";
+import type { RouteSectionProps } from "@solidjs/router";
 
-export default function App() {
-  const [revision, setRevision] = createSignal(0)
-  const [draft, setDraft] = createSignal('')
-  const [error, setError] = createSignal<string | null>(null)
+const navItems = [
+  { id: "areas", label: "Areas", icon: "grid" },
+  { id: "today", label: "Today", icon: "checkSquare" },
+  { id: "upcoming", label: "Upcoming", icon: "calendar" },
+  { id: "tags", label: "Tags", icon: "tag" },
+  { id: "archive", label: "Archive", icon: "archive" },
+] as const;
 
-  const updater = createUpdater()
+function App(props: RouteSectionProps) {
+  return (
+    <WorkspaceProvider>
+      <ItemProvider>
+        <AppShell>{props.children}</AppShell>
+      </ItemProvider>
+    </WorkspaceProvider>
+  );
+}
 
-  // Async memo: Solid 2 has no createResource. Reading `todos()` under
-  // <Loading> suspends until the list resolves; bumping `revision` refetches.
-  const todos = createMemo(async () => {
-    revision()
-    return listTodos()
-  })
-
-  const refresh = () => setRevision(n => n + 1)
-
-  // Writes reject silently unless caught: a denied IPC permission never
-  // reaches <Errored>, which only sees render-phase failures.
-  async function run(action: () => Promise<unknown>): Promise<boolean> {
-    setError(null)
-    try {
-      await action()
-      refresh()
-      return true
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
-      return false
+function AppShell(props: ParentProps) {
+  const desktopMedia = window.matchMedia("(min-width: 681px)");
+  const [desktopShell, setDesktopShell] = createSignal(desktopMedia.matches);
+  const desktopInboxOpen =
+    desktopMedia.matches &&
+    localStorage.getItem("life-os-inbox-collapsed") !== "true";
+  const [inboxOpen, toggleInbox] = createSignal(desktopInboxOpen);
+  const [searchOpen, setSearchOpen] = createSignal(false);
+  const location = useLocation();
+  const itemPanel = useItemPanelRoute();
+  const inspectorOpen = () => !!location.query.mode;
+  const navActive = (id: (typeof navItems)[number]["id"]) =>
+    id === "areas"
+      ? location.pathname.startsWith("/app/areas")
+      : location.pathname === `/app/${id}`;
+  const closeInbox = (returnFocus = true) => {
+    toggleInbox(false);
+    if (returnFocus) {
+      queueMicrotask(() =>
+        document
+          .querySelector<HTMLButtonElement>('button[aria-label="Inbox"]')
+          ?.focus(),
+      );
     }
-  }
-
-  async function handleSubmit(event: SubmitEvent) {
-    event.preventDefault()
-    const title = draft().trim()
-    if (!title) return
-    if (await run(() => addTodo(title))) setDraft('')
-  }
-
-  const handleToggle = (id: number, done: boolean) => run(() => toggleTodo(id, done))
-
-  const handleDelete = (id: number) => run(() => deleteTodo(id))
-
-  const statusLabel = createMemo(() => {
-    const s = updater.status()
-    switch (s.kind) {
-      case 'idle':
-        return 'Not checked yet'
-      case 'checking':
-        return 'Checking for updates…'
-      case 'current':
-        return "You're on the latest version"
-      case 'available':
-        return `v${s.version} is available`
-      case 'downloading':
-        return `Downloading ${s.percent}%`
-      case 'ready':
-        return 'Installed — restarting'
-      case 'error':
-        return 'Update check failed'
+  };
+  const closeSearch = () => {
+    setSearchOpen(false);
+    queueMicrotask(() =>
+      document.querySelector<HTMLButtonElement>(".global-search-nav")?.focus(),
+    );
+  };
+  const openSearch = () => {
+    if (window.matchMedia("(max-width: 680px)").matches) closeInbox(false);
+    setSearchOpen(true);
+    queueMicrotask(() =>
+      document.querySelector<HTMLInputElement>("#global-search-input")?.focus(),
+    );
+  };
+  const toggleInboxPanel = () => {
+    const open = !inboxOpen();
+    if (
+      open &&
+      inspectorOpen() &&
+      window.matchMedia("(max-width: 680px)").matches
+    ) {
+      itemPanel.close();
     }
-  })
+    toggleInbox(open);
+  };
+  const closeInboxForNavigation = () => {
+    if (!desktopShell()) closeInbox(false);
+  };
 
-  const progress = createMemo(() => {
-    const s = updater.status()
-    return s.kind === 'downloading' ? s.percent : null
-  })
+  createEffect(inboxOpen, (open) => {
+    if (desktopShell()) {
+      localStorage.setItem("life-os-inbox-collapsed", String(!open));
+    }
+    if (open) {
+      queueMicrotask(() =>
+        document.querySelector<HTMLInputElement>("#quick-capture")?.focus(),
+      );
+    }
+  });
 
-  const updateError = createMemo(() => {
-    const s = updater.status()
-    return s.kind === 'error' ? s.message : null
-  })
-
-  const available = createMemo(() => {
-    const s = updater.status()
-    return s.kind === 'available' ? s : null
-  })
-
-  const busy = () => updater.status().kind === 'checking' || updater.status().kind === 'downloading'
-
-  // Startup check is silent: until a release host exists, a failed check is
-  // the normal case and should not shout at the user.
   onSettled(() => {
-    void updater.loadVersion()
-    void updater.checkNow(true)
-  })
+    const openInbox = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.code === "Space") {
+        event.preventDefault();
+        if (!inboxOpen()) toggleInboxPanel();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        openSearch();
+      }
+      if (event.key === "Escape" && searchOpen()) closeSearch();
+    };
+    window.addEventListener("keydown", openInbox);
+    const updateShellMode = (event: MediaQueryListEvent) =>
+      setDesktopShell(event.matches);
+    desktopMedia.addEventListener("change", updateShellMode);
+    return () => {
+      window.removeEventListener("keydown", openInbox);
+      desktopMedia.removeEventListener("change", updateShellMode);
+    };
+  });
 
   return (
-    <main class="app">
-      <header class="head">
-        <h1>LifeOS</h1>
-        <p class="muted">Todos · local SQLite</p>
-      </header>
-
-      <form class="composer" onSubmit={handleSubmit}>
-        <input
-          value={draft()}
-          onInput={e => setDraft(e.currentTarget.value)}
-          placeholder="What needs doing?"
-          autofocus
-        />
-        <button type="submit">Add</button>
-      </form>
-
-      <Show when={error()}>
-        <p class="error">{error()}</p>
-      </Show>
-
-      <Errored fallback={err => <p class="error">Database error: {String(err())}</p>}>
-        <Loading fallback={<p class="muted">Loading…</p>}>
-          <Show when={todos().length > 0} fallback={<p class="muted">Nothing yet. Add your first task.</p>}>
-            <ul class="todos">
-              <For each={todos()}>
-                {todo => (
-                  <li class={['todo', { done: todo.done === 1 }]}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={todo.done === 1}
-                        onChange={e => handleToggle(todo.id, e.currentTarget.checked)}
-                      />
-                      <span>{todo.title}</span>
-                    </label>
-                    <button class="delete" onClick={() => handleDelete(todo.id)} aria-label="Delete">
-                      ×
-                    </button>
-                  </li>
-                )}
-              </For>
-            </ul>
-          </Show>
-        </Loading>
-      </Errored>
-
-      <section class="updates">
-        <div class="updates-head">
-          <h2>Updates</h2>
-          <span class="muted">{updater.appVersion() ? `v${updater.appVersion()}` : 'dev'}</span>
+    <>
+      <div
+        id="app"
+        class={{
+          "inbox-open": inboxOpen(),
+          "inspector-open": inspectorOpen(),
+        }}
+      >
+        <aside class="sidebar">
+          <span>{/* {sidebarW()} x {sidebarH()} */}</span>
+          <nav class="nav-items">
+            <button
+              class={["nav-button", { active: inboxOpen() }]}
+              aria-label="Inbox"
+              title="Inbox"
+              onClick={toggleInboxPanel}
+            >
+              <Icon name="inbox" size={22} />
+            </button>
+            <hr class="nav-sep" />
+            <For each={navItems}>
+              {(item) => (
+                <a
+                  class={[`nav-button${navActive(item.id) ? " active" : ""}`]}
+                  aria-label={item.label}
+                  title={item.label}
+                  href={`/app/${item.id}`}
+                  onClick={closeInboxForNavigation}
+                >
+                  <Icon name={item.icon} size={22} />
+                </a>
+              )}
+            </For>
+          </nav>
+          <WorkspaceMenu />
+        </aside>
+        <div class={["inbox-host", { open: inboxOpen() }]}>
+          <InboxPanel
+            open={inboxOpen()}
+            docked={desktopShell()}
+            onClose={closeInbox}
+          />
         </div>
-
-        <p class="muted">{statusLabel()}</p>
-
-        <Show when={available()}>
-          {update => (
-            <Show when={update().notes}>
-              <p class="notes">{update().notes}</p>
-            </Show>
-          )}
-        </Show>
-
-        <Show when={progress()}>
-          <div class="bar">
-            <div class="bar-fill" style={{ width: `${progress()}%` }} />
+        <main class="main">{props.children}</main>
+        <ItemInspector docked={desktopShell()} />
+        <div id="area-inspector-host" class="area-inspector-host" />
+        <Show when={searchOpen()}>
+          <div class="search-host open" onClick={closeSearch}>
+            <SearchPanel onClose={closeSearch} />
           </div>
         </Show>
-
-        <Show when={updateError()}>
-          <p class="error">{updateError()}</p>
-        </Show>
-
-        <div class="updates-actions">
-          <button class="ghost" disabled={busy()} onClick={() => updater.checkNow()}>
-            Check for updates
-          </button>
-          <Show when={available()}>
-            {update => (
-              <button class="primary" disabled={busy()} onClick={() => updater.install()}>
-                Install v{update().version}
-              </button>
-            )}
-          </Show>
-        </div>
-      </section>
-    </main>
-  )
+      </div>
+    </>
+  );
 }
+
+export default App;

@@ -12,12 +12,15 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@solidjs/router": "2.0.0-next.42",
     "@solidjs/web": "2.0.0-rc.18",
     "@tauri-apps/api": "2.12.4",
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-sql": "^2.6.0",
     "@tauri-apps/plugin-updater": "^2.14.0",
-    "solid-js": "2.0.0-rc.18"
+    "nanoid": "6.0.2",
+    "solid-js": "2.0.0-rc.18",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@solidjs/diagnostics": "2.0.0-rc.18",

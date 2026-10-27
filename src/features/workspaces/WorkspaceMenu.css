@@ -1,0 +1,201 @@
+.workspace-menu {
+  position: relative;
+  place-self: center;
+  margin-bottom: 12px;
+}
+
+.workspace-trigger {
+  display: block;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.workspace-trigger .avatar {
+  margin: 0;
+  box-shadow:
+    0 0 0 3px white,
+    0 0 0 4px var(--color-border);
+}
+
+.workspace-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  border: 0;
+  background: transparent;
+}
+
+.workspace-popover {
+  position: absolute;
+  z-index: 31;
+  bottom: -4px;
+  left: 56px;
+  width: min(340px, calc(100vw - 88px));
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 22px 70px rgb(44 48 80 / 18%);
+  backdrop-filter: blur(18px);
+  text-align: left;
+}
+
+.workspace-popover header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 2px 12px;
+}
+
+.workspace-popover header div {
+  display: grid;
+  gap: 2px;
+}
+
+.workspace-popover header span {
+  color: hsl(225 14% 47%);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.workspace-popover header button,
+.workspace-popover footer button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.workspace-list {
+  display: grid;
+  gap: 4px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.workspace-list > button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  padding: 7px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.workspace-list > button:hover,
+.workspace-list > button.selected {
+  background: color-mix(in srgb, var(--color-purple) 9%, transparent);
+}
+
+.workspace-list strong {
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.workspace-list small {
+  color: var(--color-purple);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.workspace-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.workspace-form input {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.workspace-form button {
+  border: 0;
+  border-radius: 10px;
+  padding: 0 12px;
+  color: white;
+  background: var(--color-purple);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.workspace-error {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  color: #a82d46;
+  background: #fff0f3;
+  font-size: 0.72rem;
+}
+
+.workspace-popover footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-top: 12px;
+  margin-top: 10px;
+  border-top: 1px solid var(--color-border);
+}
+
+.workspace-popover footer button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 8px;
+  border-radius: 9px;
+  color: hsl(225 14% 38%);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.workspace-popover footer button:hover {
+  background: hsl(228 40% 96%);
+}
+
+.workspace-popover footer a {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 9px;
+  padding: 7px 8px;
+  color: var(--color-purple);
+  font-size: 0.7rem;
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.workspace-popover footer a:hover {
+  background: hsl(248 70% 96%);
+}
+
+.workspace-popover footer button.danger {
+  color: #b5354c;
+}
+
+.workspace-popover footer button:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .workspace-popover {
+    position: fixed;
+    right: 12px;
+    bottom: 80px;
+    left: 12px;
+    width: auto;
+  }
+}

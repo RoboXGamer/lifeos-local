@@ -1,0 +1,277 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+
+  scroll-behavior: smooth;
+  font-family: var(--sans);
+  font-size: 100%;
+  line-height: 1.45;
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  overflow-wrap: break-word;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+body,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+li,
+.fluid,
+textarea,
+input,
+select,
+button,
+th,
+td {
+  --fl: 0;
+  --font-size-min: 14;
+  --font-size-max: 20;
+  --font-ratio-min: 1.25;
+  --font-ratio-max: 1.3333333333333333;
+  --font-width-min: 320;
+  --font-width-max: 1500;
+  --fluid-min: calc(
+    var(--font-size-min) * pow(var(--font-ratio-min), var(--fl, 0))
+  );
+  --fluid-max: calc(
+    var(--font-size-max) * pow(var(--font-ratio-max), var(--fl, 0))
+  );
+  --fluid-preferred: calc(
+    (var(--fluid-max) - var(--fluid-min)) /
+      (var(--font-width-max) - var(--font-width-min))
+  );
+  --fluid-type: clamp(
+    (var(--fluid-min) / 16) * 1rem,
+    ((var(--fluid-min) / 16) * 1rem) -
+      (((var(--fluid-preferred) * var(--font-width-min)) / 16) * 1rem) +
+      (var(--fluid-preferred) * var(--variable-unit, 100vi)),
+    (var(--fluid-max) / 16) * 1rem
+  );
+  font-size: var(--fluid-type);
+}
+
+/* Use container width instead of viewport width for fluid descendants. */
+.fluid-text-container {
+  container-type: inline-size;
+  --variable-unit: 100cqi;
+}
+
+h1,
+.h1 {
+  --fl: 5;
+}
+h2,
+.h2 {
+  --fl: 4;
+}
+h3,
+.h3 {
+  --fl: 3;
+}
+h4,
+.h4 {
+  --fl: 2;
+}
+h5,
+.h5 {
+  --fl: 1;
+}
+h6,
+.h6,
+p,
+li,
+body,
+.fs-base {
+  --fl: 0;
+}
+.fs-xs {
+  --fl: -1;
+}
+.fs-s {
+  --fl: 1;
+}
+.fs-m {
+  --fl: 2;
+}
+.fs-l {
+  --fl: 3;
+}
+.fs-xl {
+  --fl: 4;
+}
+.fs-xxl {
+  --fl: 5;
+}
+.fs-xxxl {
+  --fl: 6;
+}
+
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+#root {
+  --_margin: 8px;
+  margin: var(--_margin);
+  height: calc(100vh - 2 * var(--_margin));
+}
+
+body:has(.landing-page) {
+  min-width: 320px;
+  overflow-x: hidden;
+  background: #f8f9fd;
+}
+
+#root:has(.landing-page) {
+  --_margin: 0px;
+  height: auto;
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+}
+
+.landing-placeholder,
+.page-state {
+  display: grid;
+  place-content: center;
+  justify-items: start;
+  gap: 12px;
+  min-height: 100%;
+  padding: 32px;
+}
+
+.landing-placeholder {
+  max-width: 760px;
+  margin: auto;
+}
+
+.landing-placeholder span,
+.page-state > span {
+  color: #5a45e5;
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.landing-placeholder h1 {
+  max-width: 720px;
+  font-size: clamp(2.5rem, 7vw, 5.6rem);
+  letter-spacing: -0.055em;
+}
+
+.landing-placeholder a,
+.page-state a {
+  color: white;
+  background: #5a45e5;
+  padding: 11px 17px;
+  border-radius: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.page-state {
+  align-content: center;
+  min-height: 280px;
+}
+
+.page-state p {
+  color: hsl(225, 14%, 45%);
+}
+
+.page-state-full {
+  min-height: calc(100vh - 16px);
+}
+
+.auth-bootstrap {
+  min-height: calc(100vh - 16px);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.auth-bootstrap-mark {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: #5a45e5;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 800;
+  box-shadow: 0 12px 30px rgb(90 69 229 / 24%);
+}
+
+.auth-bootstrap p {
+  color: hsl(225, 14%, 45%);
+}
+
+.auth-bootstrap button {
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 14px;
+  background: #5a45e5;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+}
