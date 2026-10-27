@@ -24,28 +24,30 @@ _Detailed product vision: coming in a later entry._
 
 ## Milestones
 
-**Day 1 — Foundation (Oct 27, 2026)**
+An empty folder at 19:46, the last of these committed at 21:14 — one sitting, under 90 minutes (Oct 27, 2026).
+
+**19:47 — Foundation**
 - Chose the stack and locked every version.
 - Scaffolded the Tauri + Solid 2 project, no template magic.
 - Got a window to open with a working dev build.
 
-**Day 2 — Local database (Oct 27, 2026)**
+**19:59 — Local database**
 - Wired SQLite through the official Tauri SQL plugin.
 - First migration creates the `todos` table; the DB file lives in app config, offline by default.
 - First real feature: add, complete, and delete todos, persisted on disk.
 
-**Day 3 — Update pipeline (Oct 27, 2026)**
+**20:09 — Update pipeline, first pass**
 - Signed update artifacts enabled in the bundle.
 - In-app check → download → install → relaunch, with a silent startup check.
 - No release host yet, so the flow is wired but not yet exercised end to end.
 
-**Day 4 — The port (Oct 27, 2026)**
+**20:34 — The port**
 - Brought the real LifeOS interface over and deleted the cloud layer outright: no server, no login, no sync.
 - One SQLite file now backs a single reactive store: reads are memos, writes go to disk and reload the store.
 - Swapped TanStack Router for Solid Router, so the whole stack is Solid-native again.
 - Next: walk the real flow on desktop — capture, areas, item families, today, archive and restore.
 
-**Day 5 — Updates that actually ship (Oct 27, 2026)**
+**21:14 — Updates that actually ship**
 - Dropped the placeholder host: the manifest is served from this machine on `127.0.0.1:8123`.
 - One command builds the NSIS installer, signs it, and writes `latest.json`; another serves the folder.
 - Ran the real loop: 0.1.0 found 0.1.1 in the sidebar, downloaded it, verified the signature, installed, and relaunched as 0.1.1.
