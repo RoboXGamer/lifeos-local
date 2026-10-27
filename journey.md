@@ -24,34 +24,34 @@ _Detailed product vision: coming in a later entry._
 
 ## Milestones
 
-Five milestones in one sitting (Oct 27, 2026): an empty folder at 19:46, a signed self-updating app by 21:14.
+Five milestones in one sitting (Oct 27, 2026): an empty folder at 19:46, a signed self-updating app by 21:14 — 88 minutes start to finish.
 
-**1 — Foundation**
+**1 minute in — Foundation**
 _19:47 · a window opens, every version pinned_
 - Chose the stack and locked every version.
 - Scaffolded the Tauri + Solid 2 project, no template magic.
 - Got a window to open with a working dev build.
 
-**2 — Local database**
+**13 minutes in — Local database**
 _19:59 · todos survive a restart_
 - Wired SQLite through the official Tauri SQL plugin.
 - First migration creates the `todos` table; the DB file lives in app config, offline by default.
 - First real feature: add, complete, and delete todos, persisted on disk.
 
-**3 — Update pipeline, first pass**
+**23 minutes in — Update pipeline, first pass**
 _20:09 · the loop is wired, nothing to update yet_
 - Signed update artifacts enabled in the bundle.
 - In-app check → download → install → relaunch, with a silent startup check.
 - No release host yet, so the flow is wired but not yet exercised end to end.
 
-**4 — The port**
+**48 minutes in — The port**
 _20:34 · the real app, minus the cloud_
 - Brought the real LifeOS interface over and deleted the cloud layer outright: no server, no login, no sync.
 - One SQLite file now backs a single reactive store: reads are memos, writes go to disk and reload the store.
 - Swapped TanStack Router for Solid Router, so the whole stack is Solid-native again.
 - Next: walk the real flow on desktop — capture, areas, item families, today, archive and restore.
 
-**5 — Updates that ship**
+**88 minutes in — Updates that ship**
 _21:14 · 0.1.0 upgrades itself to 0.1.1_
 - Dropped the placeholder host: the manifest is served from this machine on `127.0.0.1:8123`.
 - One command builds the NSIS installer, signs it, and writes `latest.json`; another serves the folder.
