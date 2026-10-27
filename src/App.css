@@ -119,6 +119,91 @@ body {
   cursor: pointer;
 }
 
-.todo .delete:hover {
-  color: #ff9aa8;
+.updates {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 14px;
+  border: 1px solid #232831;
+  border-radius: 10px;
+  background: #171b21;
 }
+
+.updates-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.updates-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.notes {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #14181e;
+  color: #aab2c0;
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.bar {
+  height: 6px;
+  border-radius: 999px;
+  background: #232831;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: #5b8def;
+  transition: width 120ms linear;
+}
+
+.updates-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.ghost,
+.primary {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ghost {
+  border: 1px solid #2c313a;
+  background: transparent;
+  color: #c8cedb;
+}
+
+.ghost:hover:enabled {
+  background: #1d222a;
+}
+
+.primary {
+  border: 1px solid #3b63b5;
+  background: #2a4c94;
+  color: #eef2fb;
+}
+
+.primary:hover:enabled {
+  background: #325aad;
+}
+
+.ghost:disabled,
+.primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+

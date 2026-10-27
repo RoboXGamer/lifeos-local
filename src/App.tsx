@@ -1,11 +1,14 @@
-import { createMemo, createSignal, Errored, For, Loading, Show } from 'solid-js'
+import { createMemo, createSignal, Errored, For, Loading, onSettled, Show } from 'solid-js'
 import { addTodo, deleteTodo, listTodos, toggleTodo } from './db'
+import { createUpdater } from './updates'
 import './App.css'
 
 export default function App() {
   const [revision, setRevision] = createSignal(0)
   const [draft, setDraft] = createSignal('')
   const [error, setError] = createSignal<string | null>(null)
+
+  const updater = createUpdater()
 
   // Async memo: Solid 2 has no createResource. Reading `todos()` under
   // <Loading> suspends until the list resolves; bumping `revision` refetches.
@@ -40,6 +43,50 @@ export default function App() {
   const handleToggle = (id: number, done: boolean) => run(() => toggleTodo(id, done))
 
   const handleDelete = (id: number) => run(() => deleteTodo(id))
+
+  const statusLabel = createMemo(() => {
+    const s = updater.status()
+    switch (s.kind) {
+      case 'idle':
+        return 'Not checked yet'
+      case 'checking':
+        return 'Checking for updates…'
+      case 'current':
+        return "You're on the latest version"
+      case 'available':
+        return `v${s.version} is available`
+      case 'downloading':
+        return `Downloading ${s.percent}%`
+      case 'ready':
+        return 'Installed — restarting'
+      case 'error':
+        return 'Update check failed'
+    }
+  })
+
+  const progress = createMemo(() => {
+    const s = updater.status()
+    return s.kind === 'downloading' ? s.percent : null
+  })
+
+  const updateError = createMemo(() => {
+    const s = updater.status()
+    return s.kind === 'error' ? s.message : null
+  })
+
+  const available = createMemo(() => {
+    const s = updater.status()
+    return s.kind === 'available' ? s : null
+  })
+
+  const busy = () => updater.status().kind === 'checking' || updater.status().kind === 'downloading'
+
+  // Startup check is silent: until a release host exists, a failed check is
+  // the normal case and should not shout at the user.
+  onSettled(() => {
+    void updater.loadVersion()
+    void updater.checkNow(true)
+  })
 
   return (
     <main class="app">
@@ -87,6 +134,46 @@ export default function App() {
           </Show>
         </Loading>
       </Errored>
+
+      <section class="updates">
+        <div class="updates-head">
+          <h2>Updates</h2>
+          <span class="muted">{updater.appVersion() ? `v${updater.appVersion()}` : 'dev'}</span>
+        </div>
+
+        <p class="muted">{statusLabel()}</p>
+
+        <Show when={available()}>
+          {update => (
+            <Show when={update().notes}>
+              <p class="notes">{update().notes}</p>
+            </Show>
+          )}
+        </Show>
+
+        <Show when={progress()}>
+          <div class="bar">
+            <div class="bar-fill" style={{ width: `${progress()}%` }} />
+          </div>
+        </Show>
+
+        <Show when={updateError()}>
+          <p class="error">{updateError()}</p>
+        </Show>
+
+        <div class="updates-actions">
+          <button class="ghost" disabled={busy()} onClick={() => updater.checkNow()}>
+            Check for updates
+          </button>
+          <Show when={available()}>
+            {update => (
+              <button class="primary" disabled={busy()} onClick={() => updater.install()}>
+                Install v{update().version}
+              </button>
+            )}
+          </Show>
+        </div>
+      </section>
     </main>
   )
 }

@@ -34,9 +34,13 @@ _Detailed product vision: coming in a later entry._
 - First migration creates the `todos` table; the DB file lives in app config, offline by default.
 - First real feature: add, complete, and delete todos, persisted on disk.
 
+**Day 3 — Update pipeline (Oct 27, 2026)**
+- Signed update artifacts enabled in the bundle.
+- In-app check → download → install → relaunch, with a silent startup check.
+- No release host yet, so the flow is wired but not yet exercised end to end.
+
 **Next up**
 - Tray icon + autostart.
-- Auto-updater.
 - `.msi` installer.
 
 ## What Broke (and How I Fixed It)

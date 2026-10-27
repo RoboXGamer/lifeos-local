@@ -11,7 +11,7 @@ import sys
 import time
 from pathlib import Path
 
-app_dir = Path(os.environ["APPDATA"]) / "dev.a5in.tauri-solid-draft1"
+app_dir = Path(os.environ["APPDATA"]) / "dev.a5in.lifeos"
 targets = [app_dir / name for name in ("lifeos.db", "lifeos.db-wal", "lifeos.db-shm")]
 
 found = [p for p in targets if p.exists()]
