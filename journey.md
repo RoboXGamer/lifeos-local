@@ -39,6 +39,12 @@ _Detailed product vision: coming in a later entry._
 - In-app check → download → install → relaunch, with a silent startup check.
 - No release host yet, so the flow is wired but not yet exercised end to end.
 
+**Day 4 — The port (Oct 27, 2026)**
+- Brought the real LifeOS interface over and deleted the cloud layer outright: no server, no login, no sync.
+- One SQLite file now backs a single reactive store: reads are memos, writes go to disk and reload the store.
+- Swapped TanStack Router for Solid Router, so the whole stack is Solid-native again.
+- Next: walk the real flow on desktop — capture, areas, item families, today, archive and restore.
+
 **Next up**
 - Tray icon + autostart.
 - `.msi` installer.
