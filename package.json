@@ -9,7 +9,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "update:publish": "node scripts/publish-update.mjs",
+    "update:serve": "uv run --no-project scripts/serve-updates.py src-tauri/target/release/bundle/updates 8123"
   },
   "dependencies": {
     "@solidjs/router": "2.0.0-next.42",

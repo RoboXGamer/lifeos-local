@@ -1,109 +1,68 @@
-# Auto-update flow
+# Updates
 
-LifeOS checks a static JSON manifest, downloads a signed installer, verifies the
-signature, installs it, and relaunches.
+Life OS updates are served from this machine. There is no release host.
 
-## What is wired where
-
-| Piece | Location |
-| --- | --- |
-| Update check / download / install state | `src/update.ts` → `createUpdater()` |
-| UI (status, progress bar, install button) | `src/App.tsx`, `.updates` card |
-| Startup check (silent, failures hidden) | `onSettled(() => updater.checkNow(true))` |
-| Rust plugins | `src-tauri/src/lib.rs` (`updater`, `process`) |
-| Permissions | `src-tauri/capabilities/default.json` (`updater:default`, `process:allow-restart`) |
-| Endpoint + public key | `src-tauri/tauri.conf.json` → `plugins.updater` |
-| Signed artifacts | `bundle.createUpdaterArtifacts: true` |
-
-Statuses: `idle → checking → current | available → downloading → ready` and
-`error`. The startup check is silent so an offline launch or a missing release
-host never shows an error.
-
-## Signing key (already generated)
-
-- Private key: `C:\Users\A5IN\.tauri\lifeos.key` — **never commit it** (it lives outside the repo).
-- Public key: embedded in `tauri.conf.json` (`plugins.updater.pubkey`).
-- Dev key has **no password**. Before a public release, generate a new key with a
-  password: `pnpm tauri signer generate -w ~/.tauri/lifeos-release.key`.
-- Lose the private key and you can never sign another update for existing installs.
-
-## Release build
+## Publish a version
 
 ```bash
-export TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/lifeos.key)"
-export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
-pnpm tauri build
+# builds, signs, and writes latest.json
+node scripts/publish-update.mjs --version 0.1.1 --notes "Faster Areas, calmer capture"
 ```
 
-Without those env vars the build fails, because updater artifacts must be signed.
+- The build is a signed NSIS bundle (`--bundles nsis`) using
+  `~/.tauri/lifeos.key`, or `TAURI_SIGNING_PRIVATE_KEY` when set.
+- Artifacts land in `src-tauri/target/release/bundle/updates/` (gitignored):
+  `LifeOS_<version>_x64-setup.exe`, its `.sig`, and `latest.json`.
+- The repo version is restored after the build, so the app you run locally
+  keeps its old version and will see the published one as an update.
 
-Output in `src-tauri/target/release/bundle/`:
+## Serve it
 
-```
-msi/LifeOS_0.1.0_x64_en-US.msi
-msi/LifeOS_0.1.0_x64_en-US.msi.zip       + .sig   <- updater payload
-nsis/LifeOS_0.1.0_x64-setup.exe
-nsis/LifeOS_0.1.0_x64-setup.nsis.zip     + .sig   <- updater payload
-```
-
-Use the **NSIS** payload for updates: it installs per-user, so an update does not
-trigger a UAC prompt.
-
-## Manifest (`latest.json`)
-
-Host this next to the artifacts:
-
-```json
-{
-  "version": "0.1.1",
-  "notes": "First update through the pipe.",
-  "pub_date": "2026-10-27T12:00:00Z",
-  "platforms": {
-    "windows-x86_64": {
-      "signature": "<contents of LifeOS_0.1.1_x64-setup.nsis.zip.sig>",
-      "url": "https://your-host/LifeOS_0.1.1_x64-setup.nsis.zip"
-    }
-  }
-}
+```bash
+pnpm update:serve
 ```
 
-`signature` is the text inside the `.sig` file, not the file path.
-Point `plugins.updater.endpoints` at this file.
+Serves that folder at `http://127.0.0.1:8123/latest.json`. Port 8123 is what
+`plugins.updater.endpoints` in `src-tauri/tauri.conf.json` points at.
 
-## Testing locally
+## Test the flow
 
-`pnpm tauri dev` **cannot** self-update — the updater needs a real installed build.
+1. `pnpm update:serve`
+2. Start the app built with the previous version (`pnpm tauri dev` counts).
+3. The sidebar shows a download button above the avatar.
+4. Open it → **Install update** → download → the NSIS installer runs and the
+   app restarts on the new version.
 
-1. Build and install v0.1.0 (env vars above), keep it as the running app.
-2. Bump `version` in `src-tauri/tauri.conf.json` to `0.1.1`, build again.
-3. Assemble a test folder: the `0.1.1` `.nsis.zip`, its `.sig` content in
-   `latest.json`, and run:
+## Notes
 
-   ```bash
-   uv run --no-project scripts/serve-updates.py path/to/test-folder 8000
-   ```
+- The endpoint is plain HTTP on localhost, so
+  `plugins.updater.dangerousInsecureTransportProtocol` is `true`. Release builds
+  refuse non-HTTPS endpoints without it. If updates ever come from another
+  machine, prefer HTTPS and turn this off.
+- The signing key is intentionally outside the repo. Keep the matching public
+  key in `plugins.updater.pubkey`.
+- `pnpm update:serve` is a thin wrapper around
+  `uv run --no-project scripts/serve-updates.py <folder> 8123`.
 
-4. Point the endpoint at `http://127.0.0.1:8000/latest.json` and add
-   `"dangerousInsecureTransportProtocol": true` to `plugins.updater` for that
-   build only — HTTPS is required otherwise.
-5. Launch the installed 0.1.0, hit **Check for updates**, watch it download and
-   restart into 0.1.1. Remove the insecure flag afterwards.
+## Troubleshooting
 
-## Hosting options
+If bundling fails with `failed to bundle project: timeout: global` while
+downloading `nsis-3.13.zip`, the bundler could not reach GitHub. Pre-seed its
+cache instead of retrying:
 
-- **GitHub Releases** — free, and `tauri-action` can publish the artifacts and
-  `latest.json` automatically on tag push (recommended for a personal project).
-- **Any static host** (R2, S3, Netlify, your own server) — upload `latest.json`
-  plus the `.nsis.zip` and keep the URL stable.
-- Rollout control is per-platform only: the manifest can advertise a version to
-  Windows and an older one elsewhere, but there is no staged percentage rollout.
+```bash
+# Windows: %LOCALAPPDATA%\tauri
+TOOLS="$LOCALAPPDATA/tauri"
+mkdir -p "$TOOLS" && cd "$TOOLS"
+curl -LO https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.13/nsis-3.13.zip
+unzip -q nsis-3.13.zip && mv nsis-3.13 NSIS
+mkdir -p NSIS/Plugins/x86-unicode/additional
+curl -L -o NSIS/Plugins/x86-unicode/additional/nsis_tauri_utils.dll \
+  https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.3/nsis_tauri_utils.dll
+```
 
-## Gotchas
+The bundler checks these exact hashes and then skips the download:
 
-- Forgetting to bump `version` in `tauri.conf.json` means the app thinks it is
-  already current.
-- Signature mismatch (`signature verification failed`) means `latest.json` and
-  the installer came from different keys or the `.sig` was edited.
-- Endpoint changes need a rebuild; the URL is baked into the binary.
-- The updater artifacts are only produced when `createUpdaterArtifacts` is on
-  **and** the signing key env vars are set.
+- `nsis-3.13.zip` SHA1 `DB14F8AF2EA346B786C6AE19343F61AAF5E09B8E`
+- `NSIS/NSIS.exe` SHA1 `6D45D4E8CCF18FE1FDAC9164058F356102A2ECF2`
+- `nsis_tauri_utils.dll` SHA1 `75197FEE3C6A814FE035788D1C34EAD39349B860`
