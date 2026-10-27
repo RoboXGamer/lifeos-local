@@ -45,15 +45,27 @@ _Detailed product vision: coming in a later entry._
 - Swapped TanStack Router for Solid Router, so the whole stack is Solid-native again.
 - Next: walk the real flow on desktop — capture, areas, item families, today, archive and restore.
 
+**Day 5 — Updates that actually ship (Oct 27, 2026)**
+- Dropped the placeholder host: the manifest is served from this machine on `127.0.0.1:8123`.
+- One command builds the NSIS installer, signs it, and writes `latest.json`; another serves the folder.
+- Ran the real loop: 0.1.0 found 0.1.1 in the sidebar, downloaded it, verified the signature, installed, and relaunched as 0.1.1.
+- The repo stays at 0.1.0 on purpose, so the update stays testable without bumping anything.
+
 **Next up**
-- Tray icon + autostart.
-- `.msi` installer.
+- Walk the real product flow end to end on desktop: capture → areas → item families → today → archive/restore.
+- Tray icon + autostart, plus the system-wide capture hotkey.
+- Package a signed `.msi` next to the NSIS installer.
+- Backup/export, so one SQLite file is never a single point of failure.
+- Then the redesign pass on the new product vision.
 
 ## What Broke (and How I Fixed It)
 
 - **First build failed: `icons/icon.ico not found`.** Tauri needs a Windows icon resource even when the icon list is empty. Fixed by generating a 1024px icon and running the Tauri icon generator.
 - **Ecosystem lag is real.** TanStack's Solid adapters still target Solid 1, so they were dropped for v1. Only the few packages that actually support Solid 2 made the cut.
 - **Editing a migration that already ran blocks startup.** SQLx stores a checksum per migration, so the app refused to boot: *"migration 1 was previously applied but has been modified"*. Fix was resetting the dev DB — and the new rule is: applied migrations are immutable, changes go in a new file.
+- **The bundler could not download NSIS, but curl could.** Tauri's tool download kept failing with `timeout: global` while the same zip downloaded fine by hand. Fixed by pre-seeding `%LOCALAPPDATA%\tauri\NSIS` with the hashed toolset, so the bundler verifies it and skips the network entirely.
+- **The Windows updater artifact is the installer, not a zip.** The publisher expected a `.nsis.zip` from v1 habits; v2 signs the `.exe` itself. One line of artifact matching fixed it.
+- **A blank window was a stale dev cache.** An old Vite server held port 1420, so `tauri dev` never started and an older app instance answered instead. Killing the leftovers and clearing `node_modules/.vite` brought the real UI back.
 
 ## What I'm Learning
 
