@@ -29,8 +29,12 @@ _Detailed product vision: coming in a later entry._
 - Scaffolded the Tauri + Solid 2 project, no template magic.
 - Got a window to open with a working dev build.
 
+**Day 2 — Local database (Oct 27, 2026)**
+- Wired SQLite through the official Tauri SQL plugin.
+- First migration creates the `todos` table; the DB file lives in app config, offline by default.
+- First real feature: add, complete, and delete todos, persisted on disk.
+
 **Next up**
-- SQLite CRUD (todos as the first real feature).
 - Tray icon + autostart.
 - Auto-updater.
 - `.msi` installer.
@@ -41,6 +45,7 @@ _Detailed product vision: coming in a later entry._
 - **Solid 2 needs the new Vite plugin.** The old `vite-plugin-solid` is Solid 1 only. Switched to `@solidjs/vite-plugin` 3.x.
 - **Prerelease version mismatch.** `@solidjs/diagnostics` `latest` tag was stale (rc.2), while Solid itself was on rc.18. Had to install from the `next` tag to keep versions aligned.
 - **Ecosystem lag is real.** TanStack's Solid adapters still target Solid 1, so they were dropped for v1. Only the few packages that actually support Solid 2 made the cut.
+- **Solid 2 removed `createResource`.** Async now lives in computations: an async memo read inside a `<Loading>` boundary, refreshed by bumping a revision signal.
 
 ## What I'm Learning
 
