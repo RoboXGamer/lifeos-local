@@ -46,6 +46,7 @@ _Detailed product vision: coming in a later entry._
 - **Prerelease version mismatch.** `@solidjs/diagnostics` `latest` tag was stale (rc.2), while Solid itself was on rc.18. Had to install from the `next` tag to keep versions aligned.
 - **Ecosystem lag is real.** TanStack's Solid adapters still target Solid 1, so they were dropped for v1. Only the few packages that actually support Solid 2 made the cut.
 - **Solid 2 removed `createResource`.** Async now lives in computations: an async memo read inside a `<Loading>` boundary, refreshed by bumping a revision signal.
+- **Editing a migration that already ran blocks startup.** SQLx stores a checksum per migration, so the app refused to boot: *"migration 1 was previously applied but has been modified"*. Fix was resetting the dev DB — and the new rule is: applied migrations are immutable, changes go in a new file.
 
 ## What I'm Learning
 
