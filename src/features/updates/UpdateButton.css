@@ -1,0 +1,232 @@
+.update-menu {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.update-trigger {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--color-purple) 24%, transparent);
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--color-purple) 8%, white);
+  color: var(--color-purple);
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.update-trigger:hover {
+  background: color-mix(in srgb, var(--color-purple) 14%, white);
+}
+
+.update-trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-purple) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.update-trigger.is-error {
+  color: hsl(0, 62%, 48%);
+  border-color: hsl(0, 62%, 84%);
+  background: hsl(0, 80%, 97%);
+}
+
+.update-trigger.is-ready {
+  color: hsl(155, 55%, 34%);
+  border-color: hsl(155, 40%, 82%);
+  background: hsl(155, 55%, 96%);
+}
+
+.update-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px white;
+  animation: update-pulse 2.2s ease-in-out infinite;
+}
+
+.update-percent {
+  font-size: 9px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.update-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  border: 0;
+  background: transparent;
+}
+
+.update-popover {
+  position: absolute;
+  z-index: 40;
+  bottom: calc(100% + 12px);
+  left: 4px;
+  width: 272px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 97%);
+  box-shadow: 0 22px 60px rgb(44 48 80 / 18%);
+  backdrop-filter: blur(18px);
+  text-align: left;
+}
+
+.update-popover header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.update-popover header span {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: hsl(225, 14%, 52%);
+}
+
+.update-popover header strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 13.5px;
+  line-height: 1.3;
+}
+
+.update-popover header button {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: hsl(225, 14%, 50%);
+  cursor: pointer;
+}
+
+.update-popover header button:hover {
+  background: hsl(225, 30%, 95%);
+  color: var(--color-text);
+}
+
+.update-version {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(225, 16%, 42%);
+  font-variant-numeric: tabular-nums;
+}
+
+.update-notes {
+  margin-top: 6px;
+  max-height: 96px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  color: hsl(225, 14%, 42%);
+  white-space: pre-line;
+}
+
+.update-status {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: hsl(225, 14%, 44%);
+}
+
+.update-error {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: hsl(0, 62%, 46%);
+  overflow-wrap: anywhere;
+}
+
+.update-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.update-actions button {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: white;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.update-actions button:hover {
+  border-color: color-mix(in srgb, var(--color-purple) 35%, transparent);
+  color: var(--color-purple);
+}
+
+.update-actions button.primary {
+  border-color: var(--color-purple);
+  background: var(--color-purple);
+  color: var(--color-purple-foreground);
+}
+
+.update-actions button.primary:hover {
+  color: var(--color-purple-foreground);
+  background: color-mix(in srgb, var(--color-purple) 88%, black);
+}
+
+.update-progress {
+  height: 6px;
+  margin-top: 12px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--color-purple) 12%, transparent);
+  overflow: hidden;
+}
+
+.update-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-purple);
+  transition: width 0.2s ease;
+}
+
+@keyframes update-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (max-width: 680px) {
+  .update-trigger {
+    width: 38px;
+    height: 38px;
+  }
+
+  .update-popover {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: 76px;
+    width: auto;
+  }
+}

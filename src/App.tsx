@@ -9,6 +9,7 @@ import { InboxPanel } from "./features/items/InboxPanel";
 import { ItemInspector } from "./features/items/ItemInspector";
 import { SearchPanel } from "./features/items/SearchPanel";
 import { useItemPanelRoute } from "./features/items/routing";
+import { UpdateButton } from "./features/updates/UpdateButton";
 import type { RouteSectionProps } from "@solidjs/router";
 
 const navItems = [
@@ -153,7 +154,10 @@ function AppShell(props: ParentProps) {
               )}
             </For>
           </nav>
-          <WorkspaceMenu />
+          <div class="sidebar-footer">
+            <UpdateButton />
+            <WorkspaceMenu />
+          </div>
         </aside>
         <div class={["inbox-host", { open: inboxOpen() }]}>
           <InboxPanel

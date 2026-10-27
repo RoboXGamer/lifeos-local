@@ -1,6 +1,9 @@
 import type { IconName } from "./schemas.ts";
 export type { IconName } from "./schemas.ts";
 
+/** Icons the shell needs that are not part of the Area icon picker. */
+export type AppIconName = IconName | "download" | "refresh" | "alert";
+
 const iconNameMap: Record<string, string> = {
   inbox: "inbox",
   grid: "layout-grid",
@@ -45,10 +48,13 @@ const iconNameMap: Record<string, string> = {
   command: "command",
   sparkle: "sparkle",
   close: "x",
+  download: "download",
+  refresh: "rotate-cw",
+  alert: "triangle-alert",
 };
 
 export function Icon(props: {
-  name: IconName;
+  name: AppIconName;
   size?: number;
   class?: string;
   strokeWidth?: number;
