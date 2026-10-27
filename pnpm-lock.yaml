@@ -176,6 +176,9 @@ importers:
         specifier: 2.0.0-rc.18
         version: 2.0.0-rc.18
     devDependencies:
+      '@solidjs/diagnostics':
+        specifier: 2.0.0-rc.18
+        version: 2.0.0-rc.18(@solidjs/web@2.0.0-rc.18(solid-js@2.0.0-rc.18))(solid-js@2.0.0-rc.18)
       '@solidjs/vite-plugin':
         specifier: 3.0.0-next.51
         version: 3.0.0-next.51(@solidjs/web@2.0.0-rc.18(solid-js@2.0.0-rc.18))(solid-js@2.0.0-rc.18)(vite@8.3.5(@types/node@26.6.5))
@@ -455,6 +458,16 @@ packages:
 
   '@solidjs/compiler@2.0.0-rc.18':
     resolution: {integrity: sha512-I9wQy6RQeOeDvbxDxco+hlDIK5UBxnVNdBEc2LnaC+bkSZwQX7S5ebAohPGhxfsEChLD++u9A8NBkFd9vSVM7A==}
+
+  '@solidjs/diagnostics@2.0.0-rc.18':
+    resolution: {integrity: sha512-9ZQWkGaFSjfgEayqTjuohU9pJURN849XYSpHNaiLEpw0KAOfQ4cw4ZcGDu5UUmW8E3Q1FWKqLrr6rsu0A52Ybg==}
+    peerDependencies:
+      '@solidjs/web': ^2.0.0-rc.18
+      solid-js: ^2.0.0-rc.18
+      vitest: '>=2.0.0'
+    peerDependenciesMeta:
+      vitest:
+        optional: true
 
   '@solidjs/signals@2.0.0-rc.18':
     resolution: {integrity: sha512-pzYahnM93EpDN4xZF1EefdjPE6Buuu/90/kiaLOjUFhPd3H0W6J9R8lIF+kkD1Z78LW1OTHciRY5MCqpYj5iSQ==}
@@ -1236,6 +1249,12 @@ snapshots:
       '@solidjs/compiler-linux-x64-gnu': 2.0.0-rc.18
       '@solidjs/compiler-wasm32-wasi': 2.0.0-rc.18
       '@solidjs/compiler-win32-x64-msvc': 2.0.0-rc.18
+
+  '@solidjs/diagnostics@2.0.0-rc.18(@solidjs/web@2.0.0-rc.18(solid-js@2.0.0-rc.18))(solid-js@2.0.0-rc.18)':
+    dependencies:
+      '@solidjs/signals': 2.0.0-rc.18
+      '@solidjs/web': 2.0.0-rc.18(solid-js@2.0.0-rc.18)
+      solid-js: 2.0.0-rc.18
 
   '@solidjs/signals@2.0.0-rc.18': {}
 

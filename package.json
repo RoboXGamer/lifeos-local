@@ -17,6 +17,7 @@
     "solid-js": "2.0.0-rc.18"
   },
   "devDependencies": {
+    "@solidjs/diagnostics": "2.0.0-rc.18",
     "@solidjs/vite-plugin": "3.0.0-next.51",
     "@tauri-apps/cli": "2.12.4",
     "@types/node": "26.6.5",
