@@ -8,3 +8,4 @@
 - Reset the local DB after a schema change in dev: `uv run --no-project scripts/reset-db.py` (stop `pnpm tauri dev` first).
 - DB file: `%APPDATA%\dev.a5in.tauri-solid-draft1\lifeos.db`.
 - Inspect it: `uv run --no-project scripts/inspect_db.py`.
+- Permissions: `sql:default` grants only load/select/close — writes need `sql:allow-execute` in `capabilities/default.json`.

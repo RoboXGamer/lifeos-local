@@ -47,6 +47,7 @@ _Detailed product vision: coming in a later entry._
 - **Ecosystem lag is real.** TanStack's Solid adapters still target Solid 1, so they were dropped for v1. Only the few packages that actually support Solid 2 made the cut.
 - **Solid 2 removed `createResource`.** Async now lives in computations: an async memo read inside a `<Loading>` boundary, refreshed by bumping a revision signal.
 - **Editing a migration that already ran blocks startup.** SQLx stores a checksum per migration, so the app refused to boot: *"migration 1 was previously applied but has been modified"*. Fix was resetting the dev DB — and the new rule is: applied migrations are immutable, changes go in a new file.
+- **CRUD failed silently.** Adding a todo did nothing and the UI showed no error. Tauri's `sql:default` permission set only grants load/select/close, so every write was rejected over IPC. Added `sql:allow-execute` and wrapped writes in try/catch — deny is the default, and a rejected call never reaches an error boundary.
 
 ## What I'm Learning
 
