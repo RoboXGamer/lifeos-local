@@ -9,7 +9,7 @@
  * Exits 0 on success, 1 on timeout. The app window is closed again.
  */
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -142,5 +142,7 @@ if (renderOk) {
   console.log("RENDER FAILED: app shell did not mount in the WebView");
 }
 
-spawn("taskkill", ["/PID", String(child.pid), "/T", "/F"], { shell: true });
-process.exit(bootOk && renderOk ? 0 : 1);
+execFileSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+  stdio: "ignore",
+});
+process.exitCode = bootOk && renderOk ? 0 : 1;
