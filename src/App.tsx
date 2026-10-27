@@ -82,16 +82,19 @@ function AppShell(props: ParentProps) {
     if (!desktopShell()) closeInbox(false);
   };
 
-  createEffect(inboxOpen, (open) => {
-    if (desktopShell()) {
-      localStorage.setItem("life-os-inbox-collapsed", String(!open));
-    }
-    if (open) {
-      queueMicrotask(() =>
-        document.querySelector<HTMLInputElement>("#quick-capture")?.focus(),
-      );
-    }
-  });
+  createEffect(
+    () => [inboxOpen(), desktopShell()] as const,
+    ([open, desktop]) => {
+      if (desktop) {
+        localStorage.setItem("life-os-inbox-collapsed", String(!open));
+      }
+      if (open) {
+        queueMicrotask(() =>
+          document.querySelector<HTMLInputElement>("#quick-capture")?.focus(),
+        );
+      }
+    },
+  );
 
   onSettled(() => {
     const openInbox = (event: KeyboardEvent) => {
