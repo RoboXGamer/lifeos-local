@@ -1,0 +1,26 @@
+{
+  "name": "tauri-solid-draft1",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@12.4.1",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@solidjs/web": "2.0.0-rc.18",
+    "@tauri-apps/api": "2.12.4",
+    "solid-js": "2.0.0-rc.18"
+  },
+  "devDependencies": {
+    "@solidjs/vite-plugin": "3.0.0-next.51",
+    "@tauri-apps/cli": "2.12.4",
+    "@types/node": "26.6.5",
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
+  }
+}

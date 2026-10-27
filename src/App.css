@@ -1,0 +1,38 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #14161a;
+  color: #e6e6e6;
+}
+
+.app {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  min-height: 100vh;
+}
+
+.muted {
+  margin: 0;
+  color: #8b93a1;
+  font-size: 14px;
+}
+
+.increment {
+  padding: 8px 16px;
+  border: 1px solid #2c313a;
+  border-radius: 8px;
+  background: #1d2129;
+  color: #e6e6e6;
+  font: inherit;
+  cursor: pointer;
+}
+
+.increment:hover {
+  background: #242a34;
+}
