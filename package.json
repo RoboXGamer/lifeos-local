@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
+    "build:msi": "tauri build --bundles msi --config src-tauri/tauri.msi.conf.json",
     "update:publish": "node scripts/publish-update.mjs",
     "update:serve": "uv run --no-project scripts/serve-updates.py src-tauri/target/release/bundle/updates 8123"
   },

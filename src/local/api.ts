@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
-import { run, select } from "./db";
+import { run, select, transaction } from "./db";
 import { data, reload } from "./store";
+import { searchItems } from "./search";
 import type {
   AreaDoc,
   Id,
@@ -133,19 +134,10 @@ const search = (args: {
   workspaceId: Id<"workspaces">;
   searchTerm: string;
   limit?: number;
+  type?: ItemType;
 }): ItemView[] => {
-  const term = args.searchTerm.trim().toLowerCase();
-  if (!term) return [];
   const limit = Math.max(1, Math.min(Math.floor(args.limit ?? 40), 60));
-  const areas = visibleAreaIds(args.workspaceId);
-  return itemsOf(args.workspaceId)
-    .filter(
-      (item) =>
-        !item.archived &&
-        item.title.toLowerCase().includes(term) &&
-        (item.areaId === null || areas.has(item.areaId)),
-    )
-    .slice(0, limit);
+  return searchItems(data.items, data.areas, args.workspaceId, args.searchTerm, limit, args.type);
 };
 
 const get = (args: { itemId: Id<"items"> }): ItemView | undefined =>
@@ -303,7 +295,6 @@ const quickCapture = async (args: {
     `INSERT INTO items (${ITEM_COLUMNS}) VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, ?, ?)`,
     [itemId, now, args.workspaceId, cleanTitle(args.title), now, now],
   );
-  await reload();
   return itemId;
 };
 
@@ -349,7 +340,6 @@ const create = async (
     ],
   );
   await setItemTags(itemId, args.workspaceId, args.tags);
-  await reload();
   return itemId;
 };
 
@@ -420,7 +410,6 @@ const update = async (
     }
   }
   await setItemTags(item._id, item.workspaceId, args.tags);
-  await reload();
   return null;
 };
 
@@ -435,7 +424,6 @@ const setTaskDone = async (args: {
     Date.now(),
     item._id,
   ]);
-  await reload();
   return null;
 };
 
@@ -454,7 +442,6 @@ const setArchived = async (args: {
       member._id,
     ]);
   }
-  await reload();
   return null;
 };
 
@@ -480,7 +467,6 @@ const remove = async (args: {
     await run("DELETE FROM itemTags WHERE itemId = ?", [member._id]);
     await run("DELETE FROM items WHERE _id = ?", [member._id]);
   }
-  await reload();
   return null;
 };
 
@@ -534,7 +520,6 @@ const areasCreate = async (
       now,
     ],
   );
-  await reload();
   return areaId;
 };
 
@@ -557,7 +542,6 @@ const areasUpdate = async (
       area._id,
     ],
   );
-  await reload();
   return null;
 };
 
@@ -572,7 +556,6 @@ const areasSetArchived = async (args: {
     Date.now(),
     area._id,
   ]);
-  await reload();
   return null;
 };
 
@@ -606,7 +589,6 @@ const areasRemove = async (args: {
     await run("DELETE FROM items WHERE _id = ?", [item._id]);
   }
   await run("DELETE FROM areas WHERE _id = ?", [area._id]);
-  await reload();
   return null;
 };
 
@@ -653,7 +635,6 @@ const tagsRename = async (args: {
     clean.normalizedName,
     tag._id,
   ]);
-  await reload();
   return null;
 };
 
@@ -664,7 +645,6 @@ const tagsRemove = async (args: { tagId: Id<"tags"> }): Promise<null> => {
     throw new Error("Remove this Tag from its Items before deleting it.");
   }
   await run("DELETE FROM tags WHERE _id = ?", [tag._id]);
-  await reload();
   return null;
 };
 
@@ -724,7 +704,6 @@ const workspacesCreate = async (args: {
     );
   }
   await setActiveWorkspace(profile._id, workspaceId);
-  await reload();
   return workspaceId;
 };
 
@@ -742,7 +721,6 @@ const workspacesRename = async (args: {
     Date.now(),
     workspace._id,
   ]);
-  await reload();
   return null;
 };
 
@@ -757,7 +735,6 @@ const workspacesSelect = async (args: {
   if (!workspace) throw new Error("Workspace not found.");
   if (workspace.archived) throw new Error("Restore this Workspace first.");
   await setActiveWorkspace(profile._id, workspace._id);
-  await reload();
   return null;
 };
 
@@ -788,7 +765,6 @@ const workspacesSetArchived = async (args: {
     );
     await setActiveWorkspace(profile._id, next?._id ?? null);
   }
-  await reload();
   return null;
 };
 
@@ -844,14 +820,13 @@ const workspacesRemove = async (args: {
   if (profile.activeWorkspaceId === workspace._id) {
     await setActiveWorkspace(profile._id, null);
   }
-  await reload();
   return null;
 };
 
 // ----------------------------------------------------------------- profiles
 
 /** Creates the singleton local profile + "My Life" workspace on first launch. */
-export async function ensureProfile(): Promise<void> {
+async function bootstrapProfile(): Promise<void> {
   const now = Date.now();
   let profiles = await select<Record<string, unknown>>(
     "SELECT * FROM profiles LIMIT 1",
@@ -908,7 +883,14 @@ export async function ensureProfile(): Promise<void> {
     }
   }
 
-  await reload();
+}
+
+function transactional<A, R>(mutation: (args: A) => Promise<R>): (args: A) => Promise<R> {
+  return (args) => transaction(() => mutation(args), reload);
+}
+
+export function ensureProfile(): Promise<void> {
+  return transaction(bootstrapProfile, reload);
 }
 
 const profilesCurrent = (): ProfileSummary | undefined => {
@@ -937,38 +919,38 @@ export const api = {
     search,
     get,
     removalImpact,
-    quickCapture,
-    create,
-    update,
-    setTaskDone,
-    setArchived,
-    remove,
+    quickCapture: transactional(quickCapture),
+    create: transactional(create),
+    update: transactional(update),
+    setTaskDone: transactional(setTaskDone),
+    setArchived: transactional(setArchived),
+    remove: transactional(remove),
   },
   areas: {
     list: areasList,
     listArchived: areasListArchived,
     get: areasGet,
     removalImpact: areasRemovalImpact,
-    create: areasCreate,
-    update: areasUpdate,
-    setArchived: areasSetArchived,
-    remove: areasRemove,
+    create: transactional(areasCreate),
+    update: transactional(areasUpdate),
+    setArchived: transactional(areasSetArchived),
+    remove: transactional(areasRemove),
   },
   tags: {
     list: tagsList,
     listWithCounts: tagsListWithCounts,
-    rename: tagsRename,
-    remove: tagsRemove,
+    rename: transactional(tagsRename),
+    remove: transactional(tagsRemove),
   },
   workspaces: {
     list: workspacesList,
     listArchived: workspacesListArchived,
     removalImpact: workspacesRemovalImpact,
-    create: workspacesCreate,
-    rename: workspacesRename,
-    select: workspacesSelect,
-    setArchived: workspacesSetArchived,
-    remove: workspacesRemove,
+    create: transactional(workspacesCreate),
+    rename: transactional(workspacesRename),
+    select: transactional(workspacesSelect),
+    setArchived: transactional(workspacesSetArchived),
+    remove: transactional(workspacesRemove),
   },
   profiles: {
     bootstrap: ensureProfile,

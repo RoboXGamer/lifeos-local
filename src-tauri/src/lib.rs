@@ -1,5 +1,7 @@
 use tauri_plugin_sql::{Migration, MigrationKind};
 
+mod transaction;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let migrations = vec![
@@ -18,6 +20,13 @@ pub fn run() {
     ];
 
     tauri::Builder::default()
+        .manage(transaction::TransactionState::default())
+        .invoke_handler(tauri::generate_handler![
+            transaction::begin,
+            transaction::execute,
+            transaction::select,
+            transaction::finish,
+        ])
         .plugin(
             tauri_plugin_sql::Builder::default()
                 .add_migrations("sqlite:lifeos.db", migrations)
