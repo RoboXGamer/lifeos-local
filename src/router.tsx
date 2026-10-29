@@ -10,6 +10,7 @@ import Search from "./pages/Search";
 import Tags from "./pages/Tags";
 import Today from "./pages/Today";
 import Upcoming from "./pages/Upcoming";
+import Templates from "./pages/Templates";
 
 export type ItemPanelMode = "view" | "edit" | "create" | "archived";
 
@@ -41,6 +42,7 @@ const routes = defineRoutes([
       { path: "/today", component: Today },
       { path: "/upcoming", component: Upcoming },
       { path: "/tags", component: Tags },
+      { path: "/templates", component: Templates },
       { path: "/archive", component: Archive },
       { path: "/search", component: Search },
     ],

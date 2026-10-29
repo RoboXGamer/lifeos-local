@@ -6,6 +6,7 @@ import { api, ensureProfile } from '../src/local/api.ts';
 import { data } from '../src/local/store.ts';
 import migration1 from '../src-tauri/migrations/0001_init.sql?raw';
 import migration2 from '../src-tauri/migrations/0002_lifeos.sql?raw';
+import migration3 from '../src-tauri/migrations/0003_templates.sql?raw';
 import { randomUUID } from 'node:crypto';
 
 let initialized;
@@ -13,6 +14,8 @@ const epoch = randomUUID();
 let revision = 0;
 const subscribers = new Set();
 const operations = {
+  'templates.save': api.templates.save, 'templates.saveFamily': api.templates.saveFamily,
+  'templates.apply': api.templates.apply, 'templates.remove': api.templates.remove,
   'items.quickCapture': api.items.quickCapture, 'items.create': api.items.create,
   'items.update': api.items.update, 'items.setTaskDone': api.items.setTaskDone,
   'items.setArchived': api.items.setArchived, 'items.remove': api.items.remove,
@@ -29,7 +32,7 @@ export async function initialize() {
     const directory = process.env.LIFEOS_DATA_DIR ?? join(process.env.APPDATA ?? '', 'dev.a5in.lifeos');
     if (!directory || (!process.env.LIFEOS_DATA_DIR && !process.env.APPDATA)) throw new Error('Cannot locate LifeOS data directory');
     mkdirSync(directory, { recursive: true });
-    const storage = openStorage(join(directory, 'lifeos.db'), [[1, 'create_todos', migration1], [2, 'lifeos_domain', migration2]]);
+    const storage = openStorage(join(directory, 'lifeos.db'), [[1, 'create_todos', migration1], [2, 'lifeos_domain', migration2], [3, 'templates', migration3]]);
     installStorageAdapter(storage);
     await ensureProfile();
   })();
@@ -49,6 +52,8 @@ export async function query(name, args) {
     'items': () => api.items.list(args),
     'search': () => api.items.search(args),
     'item': () => api.items.get(args),
+    'templates': () => api.templates.list(args),
+    'templates.preview': () => api.templates.preview(args),
   };
   if (!Object.hasOwn(queries, name)) throw new Error('Unknown query');
   return JSON.parse(JSON.stringify(queries[name]() ?? null));

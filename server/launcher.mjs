@@ -80,7 +80,11 @@ async function serve() {
 
 const help = `Usage: lifeos [--json] [--workspace ID] COMMAND
   workspaces | areas | list | search TEXT | capture TITLE
-  done ITEM_ID | archive ITEM_ID | restore ITEM_ID | help`;
+  done ITEM_ID | archive ITEM_ID | restore ITEM_ID | help
+  templates | template-preview TEMPLATE_ID YYYY-MM-DD [VARIABLES_JSON]
+  template-apply TEMPLATE_ID YYYY-MM-DD [VARIABLES_JSON]
+  template-save ITEM_ID NAME YYYY-MM-DD
+  template-import FILE | template-export TEMPLATE_ID`;
 
 async function main() {
   const args = process.argv.slice(2);
@@ -118,6 +122,18 @@ async function main() {
   if (action === 'workspaces') result = workspaces.workspaces;
   else if (action === 'areas') result = await api('query', 'areas', { workspaceId });
   else if (action === 'list') result = await api('query', 'items', { workspaceId });
+  else if (action === 'templates') result = await api('query', 'templates', { workspaceId });
+  else if (['template-preview', 'template-apply'].includes(action) && rest.length >= 2 && rest.length <= 3) {
+    const payload = { workspaceId, templateId: rest[0], startDate: rest[1], variables: JSON.parse(rest[2] ?? '{}') };
+    result = action === 'template-preview' ? await api('query', 'templates.preview', payload) : (await api('mutation', 'templates.apply', payload)).result;
+  }
+  else if (action === 'template-save' && rest.length === 3) result = (await api('mutation', 'templates.saveFamily', { workspaceId, itemId: rest[0], name: rest[1], startDate: rest[2] })).result;
+  else if (action === 'template-import' && rest.length === 1) result = (await api('mutation', 'templates.save', { workspaceId, definition: JSON.parse(readFileSync(rest[0], 'utf8')) })).result;
+  else if (action === 'template-export' && rest.length === 1) {
+    const template = (await api('query', 'templates', { workspaceId })).find(t => t._id === rest[0]);
+    if (!template) throw new Error('Template not found');
+    result = template.definition;
+  }
   else if (action === 'search' && rest.length === 1) result = await api('query', 'search', { workspaceId, searchTerm: rest[0] });
   else if (action === 'capture' && rest.length === 1) result = (await api('mutation', 'items.quickCapture', { workspaceId, title: rest[0] })).result;
   else if (['done', 'archive', 'restore'].includes(action) && rest.length === 1) {

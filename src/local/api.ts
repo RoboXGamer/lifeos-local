@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { hasStorageAdapter, run, select, transaction } from "./db";
 import { data, reload, applySnapshot } from "./store";
 import { searchItems } from "./search";
+import { createTemplates, listTemplates, previewTemplate } from "./templates";
 import type {
   AreaDoc,
   Id,
@@ -229,8 +230,9 @@ function validateLocation(
   }
 }
 
-function requireItemCapacity(workspaceId: Id<"workspaces">) {
-  if (itemsOf(workspaceId).length >= 500) {
+async function requireItemCapacity(workspaceId: Id<"workspaces">) {
+  const [row] = await select<{ count: number }>("SELECT COUNT(*) AS count FROM items WHERE workspaceId=?", [workspaceId]);
+  if (row.count >= 500) {
     throw new Error("A Workspace can have at most 500 Items in V1.");
   }
 }
@@ -288,7 +290,7 @@ const quickCapture = async (args: {
   workspaceId: Id<"workspaces">;
   title: string;
 }): Promise<Id<"items">> => {
-  requireItemCapacity(args.workspaceId);
+  await requireItemCapacity(args.workspaceId);
   const now = Date.now();
   const itemId = uid() as Id<"items">;
   await run(
@@ -301,11 +303,12 @@ const quickCapture = async (args: {
 const create = async (
   args: { workspaceId: Id<"workspaces"> } & ItemInput,
 ): Promise<Id<"items">> => {
-  requireItemCapacity(args.workspaceId);
+  await requireItemCapacity(args.workspaceId);
   let areaId = args.areaId;
   let parentId = args.parentId;
   if (parentId) {
-    const parent = itemOrThrow(parentId);
+    const [parent] = await select<ItemView>("SELECT * FROM items WHERE _id=?", [parentId]);
+    if (!parent) throw new Error("Parent Item not found.");
     if (
       parent.workspaceId !== args.workspaceId ||
       parent.parentId ||
@@ -813,6 +816,8 @@ const workspacesRemove = async (args: {
     throw new Error("This Workspace is too large for immediate deletion.");
   }
   await run("DELETE FROM itemTags WHERE workspaceId = ?", [workspace._id]);
+  await run("DELETE FROM templateInstances WHERE workspaceId = ?", [workspace._id]);
+  await run("DELETE FROM templates WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM items WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM tags WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM areas WHERE workspaceId = ?", [workspace._id]);
@@ -920,7 +925,17 @@ const profilesCurrent = (): ProfileSummary | undefined => {
 
 // ---------------------------------------------------------------------- api
 
+const templates = createTemplates(create);
+
 export const api = {
+  templates: {
+    list: listTemplates,
+    preview: previewTemplate,
+    save: transactional('templates.save', templates.save),
+    saveFamily: transactional('templates.saveFamily', templates.saveFamily),
+    apply: transactional('templates.apply', templates.apply),
+    remove: transactional('templates.remove', templates.remove),
+  },
   items: {
     list,
     listArchived,

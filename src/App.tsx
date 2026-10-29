@@ -17,6 +17,7 @@ const navItems = [
   { id: "today", label: "Today", icon: "checkSquare" },
   { id: "upcoming", label: "Upcoming", icon: "calendar" },
   { id: "tags", label: "Tags", icon: "tag" },
+  { id: "templates", label: "Templates", icon: "description" },
   { id: "archive", label: "Archive", icon: "archive" },
 ] as const;
 

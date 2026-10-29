@@ -6,9 +6,10 @@ import { openStorage } from '../server/storage.mjs';
 import { installStorageAdapter } from '../src/local/db.ts';
 import { api, ensureProfile } from '../src/local/api.ts';
 import { data } from '../src/local/store.ts';
+import { readMigrations } from './test-helpers.mjs';
 
 const dir = mkdtempSync(join(tmpdir(), 'lifeos-server-test-'));
-const migrations = [[1, 'create_todos', readFileSync('src-tauri/migrations/0001_init.sql', 'utf8')], [2, 'lifeos_domain', readFileSync('src-tauri/migrations/0002_lifeos.sql', 'utf8')]];
+const migrations = readMigrations();
 const storage = openStorage(join(dir, 'lifeos.db'), migrations);
 installStorageAdapter(storage);
 await ensureProfile();
@@ -44,5 +45,5 @@ storage.db.close();
 const reopened = openStorage(join(dir, 'lifeos.db'), migrations);
 assert.equal(reopened.db.prepare('SELECT COUNT(*) AS count FROM items').get().count, 12);
 reopened.db.close();
-assert.throws(() => openStorage(join(dir, 'lifeos.db'), [[1, 'create_todos', migrations[0][2] + ' '], migrations[1]]), /checksum mismatch/);
+assert.throws(() => openStorage(join(dir, 'lifeos.db'), [[1, 'create_todos', migrations[0][2] + ' '], ...migrations.slice(1)]), /checksum mismatch/);
 console.log('Server migrations, validation, rollback, concurrent writes and persistence passed');

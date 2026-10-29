@@ -1,5 +1,6 @@
 import { createStore, reconcile } from "solid-js";
 import { select } from "./db";
+import type { TemplateDoc } from "./templates";
 import type {
   AreaDoc,
   Id,
@@ -12,6 +13,7 @@ import type {
 } from "./types";
 
 export interface DbState {
+  templates: TemplateDoc[];
   profile: ProfileDoc | undefined;
   workspaces: WorkspaceDoc[];
   areas: AreaDoc[];
@@ -21,6 +23,7 @@ export interface DbState {
 }
 
 const emptyState: DbState = {
+  templates: [],
   profile: undefined,
   workspaces: [],
   areas: [],
@@ -40,6 +43,7 @@ export function applySnapshot(update: { epoch: string; revision: number; state: 
   const next = update.state;
   setData((state) => {
     state.profile = next.profile;
+    reconcile(next.templates ?? [], "_id")(state.templates);
     reconcile(next.workspaces, "_id")(state.workspaces);
     reconcile(next.areas, "_id")(state.areas);
     reconcile(next.items, "_id")(state.items);
@@ -192,13 +196,14 @@ function attachTags(
 
 /** Reads every table into the reactive store. Personal scale: a full reload is a few ms. */
 export async function reload(): Promise<void> {
-  const [profiles, workspaces, areas, items, tags, itemTags] = await Promise.all([
+  const [profiles, workspaces, areas, items, tags, itemTags, templates] = await Promise.all([
     select<Row>("SELECT * FROM profiles LIMIT 1"),
     select<Row>("SELECT * FROM workspaces ORDER BY createdAt"),
     select<Row>("SELECT * FROM areas ORDER BY createdAt"),
     select<Row>("SELECT * FROM items ORDER BY createdAt"),
     select<Row>("SELECT * FROM tags ORDER BY normalizedName"),
     select<Row>("SELECT * FROM itemTags"),
+    select<Row>("SELECT * FROM templates ORDER BY name"),
   ]);
 
   const mappedTags = tags.map(mapTag);
@@ -207,6 +212,7 @@ export async function reload(): Promise<void> {
 
   setData((state) => {
     state.profile = profiles[0] ? mapProfile(profiles[0]) : undefined;
+    reconcile(templates.map(row => ({ ...row, definition: JSON.parse(String(row.definition)) })) as unknown as TemplateDoc[], "_id")(state.templates);
     reconcile(workspaces.map(mapWorkspace), "_id")(state.workspaces);
     reconcile(areas.map(mapArea), "_id")(state.areas);
     reconcile(view, "_id")(state.items);
