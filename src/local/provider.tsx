@@ -1,5 +1,7 @@
-import { Show, createSignal, onSettled, type ParentProps } from "solid-js";
+import { Show, createSignal, onCleanup, onSettled, type ParentProps } from "solid-js";
 import { ensureProfile } from "./api";
+import { transaction } from "./db";
+import { reload } from "./store";
 import { toError } from "./query";
 
 /**
@@ -23,6 +25,13 @@ export function LocalProvider(props: ParentProps) {
   onSettled(() => {
     void boot();
   });
+
+  // Another running instance may have committed while this window was inactive.
+  const refreshOnFocus = () => {
+    if (ready()) void transaction(async () => {}, reload).catch(console.error);
+  };
+  window.addEventListener("focus", refreshOnFocus);
+  onCleanup(() => window.removeEventListener("focus", refreshOnFocus));
 
   const retry = () => {
     setError(null);
