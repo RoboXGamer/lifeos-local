@@ -7,7 +7,6 @@ import { ItemRow } from "../features/items/ItemRow";
 import {
   useItems,
   type ItemType,
-  type ItemView,
 } from "../features/items/context";
 import { useItemPanelRoute } from "../features/items/routing";
 import { useWorkspaces } from "../features/workspaces/context";
@@ -30,36 +29,16 @@ export default function Search() {
   const query = () => (searchParams.q ?? "").trim();
   const [draft, setDraft] = createSignal(query());
   const [type, setType] = createSignal<ItemType | "All">("All");
-  const titleResults = createQuery(
+  const results = createQuery(
     api.items.search,
     () => {
       const workspaceId = workspaces.state.activeWorkspaceId;
       return workspaceId && query()
-        ? { workspaceId, searchTerm: query(), limit: 60 }
+        ? { workspaceId, searchTerm: query(), limit: 60, type: type() === "All" ? undefined : type() as ItemType }
         : "skip";
     },
     { initialValue: [] },
   );
-  const results = () => {
-    const term = query().toLowerCase();
-    if (!term) return [];
-    const enrichedMatches = items.activeItems.filter((item) => {
-      const area =
-        items.areas().find((entry) => entry._id === item.areaId)?.name ??
-        "Inbox";
-      const matchesText =
-        `${item.title} ${item.description ?? ""} ${item.type ?? ""} ${item.tags.join(" ")} ${area}`
-          .toLowerCase()
-          .includes(term);
-      return matchesText && (type() === "All" || item.type === type());
-    });
-    const combined = new Map<string, ItemView>();
-    for (const item of [...(titleResults() ?? []), ...enrichedMatches]) {
-      if (type() === "All" || item.type === type())
-        combined.set(item._id, item);
-    }
-    return [...combined.values()];
-  };
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
     setSearchParams({ q: draft().trim() }, { replace: true });
@@ -91,7 +70,7 @@ export default function Search() {
             </button>
           )}
         </For>
-        <span>{results().length} results</span>
+        <span>{(results() ?? []).length} results</span>
       </div>
       <Show
         when={query()}
@@ -107,7 +86,7 @@ export default function Search() {
       >
         <div class="retrieval-scroll search-result-list">
           <For
-            each={results()}
+            each={results() ?? []}
             fallback={
               <div class="retrieval-empty">
                 <h3>No results</h3>
