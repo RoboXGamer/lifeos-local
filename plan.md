@@ -1,89 +1,119 @@
-# LifeOS milestones
+# LifeOS: next milestones
 
-These milestones are ordered: make local writes reliable, make search match its promise, package the app for testing, then add a CLI that shares the same local LifeOS as the desktop app.
+Updated: 2026-10-29. Status: proposed implementation roadmap; features below are not yet implemented.
 
-## 1. Harden multi-step writes
+The previous plan is complete per the project owner and is replaced by this roadmap. The existing Solid 2 interface, Tauri desktop shell, local service, CLI, SQLite database, and shared mutation boundary are the starting point.
 
-The original Rust transaction approach below is historical. The local service now owns SQLite transactions; the database and SQLx migration history remain in place.
+**Product direction:** LifeOS remembers what happened, turns commitments into actions, handles repeat work, and helps choose what deserves attention next.
 
-**Goal:** Adopt Convex's transactional mutation model for the local SQLite app. A mutation's reads, validation, and writes form one isolated unit: either all its changes commit, or none do. Convex calls these **transactions**; the relevant properties are **atomicity** and **isolation**. Convex also uses optimistic concurrency control for its transactional guarantees, but we do not need to reproduce its distributed implementation to get a reliable local mutation boundary. See [Convex's mutation API](https://docs.convex.dev/api/modules/server) and [transaction documentation](https://docs.convex.dev/components/using#transactions).
+## Build order and first release
 
-### Verified approach
+Build milestones 1-3 for daily usefulness, then 4-5 for project intelligence, then 6 for client obligations. Milestone 7 connects the results to the existing Today experience.
 
-The installed `tauri-plugin-sql` 2.6.0 uses a SQLx connection pool and executes individual statements through that pool. The frontend's `Database` object therefore does not guarantee that separate calls use the same physical connection. Implement the mutation boundary in Rust with a held SQLite connection and transaction; keep the existing database file and migrations. Move each mutation's state-dependent validation and writes into that boundary, while preserving the UI-facing API and local-first behavior. Coordinate commits and store refreshes so overlapping local operations cannot publish stale snapshots. SQLite locking protects database writes across processes; refreshing another running instance's in-memory store requires explicit coordination and must be addressed or the app must enforce a single instance.
+The first release is intentionally small: reusable templates, reliable recurring tasks, and three useful automation recipes. Start saving manual project checkpoints during this release so Context Resurrection has history when its richer interface arrives.
 
-### Work
+## 1. Templates: repeat a useful structure
 
-- [ ] Audit every local mutation and bootstrap operation for dependent reads and multiple writes, including item creation and editing with tags, family moves and archive/restore, item/area/workspace deletion, workspace selection, and first-run setup.
-- [ ] Implement a transaction boundary that keeps all database reads and writes for a mutation on the same SQLite connection and commits or rolls back as a unit. Verify the Tauri SQL plugin's connection behavior first; a sequence of separate frontend `execute` calls must not be assumed to share a transaction. If necessary, put transactional operations behind Rust commands with an explicitly held connection.
-- [ ] Make validation that depends on current data run against the transaction's authoritative database state. Define how concurrent mutations are serialized or otherwise isolated, including writes initiated from multiple windows or app instances.
-- [ ] Publish or reload the reactive store only after a successful commit. On failure, roll back, surface the error, and reconcile any optimistic UI state with the persisted data. Handle a successful commit followed by a failed refresh without claiming the database write was rolled back or blindly retrying it.
-- [ ] Keep applied migrations immutable; use a new migration for any schema changes.
+**Outcome:** Start a project, client engagement, or life routine without rebuilding its checklist and notes.
 
-### Done when
+- [ ] Save an item family as a template, including child tasks/notes, tags, descriptions, and relative due dates. Add area-level templates after item-family templates work.
+- [ ] Add variables such as client, project name, amount, and start date. Preview the generated items and destination before applying.
+- [ ] Create fresh item IDs in one transaction. Keep generated items independent; editing a template never silently changes earlier instances.
+- [ ] Include starter templates: weekly review, project kickoff, project restart, client onboarding, client delivery/payment follow-up, and college assignment.
+- [ ] Record the template version used by each instance. Add template editing, duplication, and local JSON import/export without including private instance data.
 
-- [ ] Successful mutations persist their full result after restart; invalid operations leave the database unchanged.
-- [ ] Failure-injection tests interrupt tag replacement, a family operation, and a multi-table deletion after at least one write and prove that no partial changes remain.
-- [ ] Concurrent mutation tests exercise the chosen isolation strategy and check that data and the visible store converge to the committed state.
-- [ ] The desktop flow works for capture, edit, family operations, archive/restore, and deletion, including error handling.
+**Done when:** A client-onboarding template creates its complete task/note family with correctly substituted variables and dates; cancel or failure creates nothing.
 
-## 2. Fix search expectations
+## 2. Recurring tasks: remember the next occurrence
 
-**Goal:** Make search find what the interface promises: titles, notes/descriptions, item types, tags, and area names.
+**Outcome:** Weekly reviews, bills, backups, maintenance, and follow-ups reliably return when needed.
 
-**Current finding:** Both search interfaces already perform enriched matching locally, but `api.items.search` matches only titles. The search page combines both paths, while the panel uses its own filter. Consolidate the matching rules and verify actual behavior before treating any particular field as broken.
+- [ ] Support daily, selected weekdays, weekly, monthly, and every-N-day schedules. Offer both calendar-based repetition and repetition after completion.
+- [ ] Separate the recurring definition from individual occurrences; retain completion history and allow skip, snooze, pause, and end dates.
+- [ ] Persist schedules in the local service with timezone, month-end behavior, and an explicit missed-occurrence policy. Default to one outstanding occurrence rather than a flood after a long absence.
+- [ ] Use a unique occurrence key so restart, retry, or simultaneous desktop/CLI activity cannot generate duplicates. Recover due work after sleep and service restart.
+- [ ] Run scheduling while the desktop window is closed if the service is running. Add optional startup integration; show that powered-off time is caught up on resume.
+- [ ] Repeated financial reminders create Planned/Expected entries only; they never mark money as Spent/Received automatically.
 
-### Work
+**Done when:** A weekly task returns correctly after completion and after a missed week, with preserved history and no duplicates across restart.
 
-- [ ] Implement case-insensitive matching across the promised fields in the local search path. Keep it local and start with the existing in-memory store; add an index only if measured performance warrants one.
-- [ ] Preserve workspace isolation, visibility and archive rules, and result limits. Define and consistently apply behavior for empty input and matching multiple fields.
-- [ ] Check both the search page and search panel, and update their copy if any supported behavior differs.
+## 3. Automations: trigger, condition, action
 
-### Done when
+**Outcome:** Routine coordination happens through small, understandable rules.
 
-- [ ] Tests cover a match in each advertised field, case differences, empty and missing values, archived items/areas, and workspace isolation.
-- [ ] The desktop UI returns the expected results and opens the selected item.
+- [ ] Reuse milestone 2's durable scheduler and add triggers for item creation, status changes, due dates, and inactivity.
+- [ ] Start with three recipes: a Friday weekly-review checklist; a delivery completion that creates a payment follow-up; an inactive project that prompts a checkpoint/review.
+- [ ] Add a lightweight desktop/CLI checkpoint saved as a child Note on an item family: what changed, what failed, and the next action. Use tagged item families for the inactivity recipe until milestone 4 adds richer project metadata.
+- [ ] Support conditions for workspace, area, type, tags, and status; actions create an item, apply a template, update allowed fields, or show an in-app reminder.
+- [ ] Give each rule a plain-language explanation, preview, enable/pause switch, and run history showing inputs, actions, results, and errors.
+- [ ] Persist jobs and retries, deduplicate internal effects, and prevent self-triggering loops. Write through the same domain API as desktop and CLI.
+- [ ] Keep sending messages, arbitrary shell commands, and external payments outside the first release. Later external actions need their own explicit configuration and failure handling.
 
-## 3. Build an MSI for testing on other machines
+**Done when:** The three recipes work across service restart; retry cannot duplicate created items, and a user can explain why each automation ran.
 
-**Goal:** Produce a Windows installer that can be copied to another machine and used to test LifeOS as a standalone app.
+## 4. Context Resurrection: return after 45 days
 
-**Current finding:** This Windows machine has Rust, Cargo, pnpm, and the existing Tauri updater key. The current release script builds NSIS only; no MSI or cached WiX toolset was found in the inspected bundle/tool directories. A successful MSI build, its prerequisites, and testing on another machine remain to be verified. Availability of a separate Windows code-signing certificate has not been established.
+**Outcome:** Opening a project shows the last goal, changes, failures, decisions, and exact next step, with evidence.
 
-**Update:** An unsigned 0.1.0 x64 MSI was built on `feat/windows-msi`, and the user reports that they installed it and it works. Testing on a second machine and upgrade/uninstall behavior remain unverified. The MSI was built from its independent feature branch, before the transaction and search branches are merged into `dev`.
+- [ ] Add project metadata linked to an existing item family and workspace. Support multiple repositories per project; an area remains a broader life category.
+- [ ] Extend the desktop/CLI checkpoint with why I stopped, timestamps, and relevant branch/commit references; preserve the notes collected during the first release.
+- [ ] Build one shared source/activity store with source IDs, timestamps, project links, content hashes, and links back to original evidence. Preserve source revisions and flag missing or stale evidence.
+- [ ] Begin automatic collection with Git commits, branches, working-tree summaries, and explicitly selected project notes. Add editor integration, selected terminal command outcomes, and saved browser links incrementally.
+- [ ] Make capture opt-in by project/source, with exclusions, retention, deletion, and secret filtering. Terminal/browser collection must not become unrestricted history recording.
+- [ ] Generate a resume brief: last goal; last known working state; failed attempts; unresolved blocker; next action; suggested files and commands. Separate observed facts from inferred suggestions, and never label an untested command as proven.
+- [ ] Keep checkpoints and source search usable without AI. Offer a local model or explicitly configured cloud analysis; imported text remains evidence rather than executable instructions.
 
-### Work
+**Done when:** Reopening a seeded 45-day-old project yields a useful brief with source links; a project with no recorded history says what is unknown instead of inventing a past.
 
-- [ ] Build an MSI on Windows using Tauri's WiX bundler, document the exact command, prerequisites, artifact location, app version, and target architecture. See [Tauri's Windows installer guide](https://v2.tauri.app/distribute/windows-installer/).
-- [ ] Decide and document the WebView2 installation mode: the default bootstrapper may need internet if the runtime is missing; the offline installer increases package size but supports offline setup.
-- [ ] Distinguish the updater's artifact signature from Windows Authenticode signing. Document the installer signing status and any Windows warnings testers may encounter; do not assume the existing updater key signs the MSI for Windows.
-- [ ] Document that the existing update endpoint points to each machine's own `127.0.0.1`: installing on another machine does not give it remote updates. Remote update distribution is a separate decision.
-- [ ] Document install, launch, upgrade/reinstall, and uninstall steps, including where the app stores its SQLite database and what happens to that data on uninstall. Never package the developer's existing database or signing key.
+## 5. Project Graveyard Intelligence: revive, salvage, or archive
 
-### Done when
+**Outcome:** An abandoned repository gets a reasoned recommendation and the smallest credible path to shipping.
 
-- [ ] The MSI installs and launches on a second Windows machine without the development toolchain.
-- [ ] A tester creates data, exits and reopens the installed app, and confirms persistence; basic capture, search, and archive/restore work.
-- [ ] Reinstall or upgrade and uninstall behavior are tested and documented, including whether existing data is preserved. Any untested behavior is explicitly noted.
+- [ ] Scan user-selected repository roots read-only, including README, manifests, lockfiles, Git state, tests, TODOs, and existing checkpoints. Reuse milestone 4's source store and project identity.
+- [ ] Produce three sections: reusable assets; obsolete or uncertain parts; minimum shipping scope with blockers. Account for uncommitted work and dependencies between repositories.
+- [ ] Check dependency/support claims against current upstream evidence when online. Offline reports mark freshness unknown. Age or a long gap since the last commit alone does not prove obsolescence.
+- [ ] Separate product value from technical readiness: ask who needs it, what outcome matters, and whether the original goal still holds. Offer revive, salvage selected parts, or archive recommendations with evidence and confidence.
+- [ ] Estimate remaining work as ranges with assumptions and a proposed timebox. Clearly distinguish static inspection from an actually verified build/test/deployment; running repository scripts is a separate user-initiated step.
+- [ ] On acceptance, turn the smallest shipping path into ordinary LifeOS tasks. Never automatically delete repositories, upgrade dependencies, or restart every old project.
 
-## 4. Add a CLI alongside the desktop app
+**Done when:** Three real abandoned repositories each receive a traceable recommendation, a reuse inventory, and an actionable shipping checklist; one is chosen for a timeboxed revival.
 
-**Goal:** One local LifeOS installation, usable from either the desktop app or a terminal. Both surfaces operate on the same profile, workspaces, and SQLite database, and the CLI works even when the desktop window is closed. Keep the app offline by default.
+## 6. Promise-to-Payment: connect commitments to evidence
 
-**Architecture direction:** Take inspiration from [OpenCode's client/server model](https://dev.opencode.ai/docs/server/): separate the local domain backend from its user interfaces, so desktop and CLI are clients of the same capabilities. OpenCode runs a headless server and clients connect to it; its [CLI also supports attaching](https://dev.opencode.ai/docs/cli/) to a running server. For LifeOS, evaluate a locally managed backend process and a shared-core alternative before committing to a transport. A server is a local process, not a cloud dependency; do not assume one permanent daemon or an HTTP port is necessary without evaluating lifecycle and security.
+**Outcome:** A client engagement shows what was promised, what changed, what is due, what was invoiced, and what was actually received.
 
-### Work
+- [ ] Start with pasted conversations, imported text/PDF documents, and manually recorded or imported payments. Add email/chat integrations after the manual workflow is useful.
+- [ ] Store clients/engagements, versioned source documents, obligations, invoices, payments, and payment allocations linked to existing tasks and Income/Expense items. Record currency and use exact monetary arithmetic for reconciliation.
+- [ ] Extract draft obligations with parties, deliverable, amount/currency, due date, conditions, status, confidence, and exact source passage/page. Require review before creating accepted financial obligations.
+- [ ] Track proposed changes, accepted amendments, cancellation, and supersession. Flag competing terms rather than assuming the newest document is authoritative.
+- [ ] Detect amount, currency, scope, deadline, and payment-term conflicts. Reconcile deposits, partial payments, refunds, and outstanding balances without double-counting imported records; missing evidence remains unknown.
+- [ ] Show a commitment timeline and exception queue. Create ordinary tasks for approaching deadlines, missing confirmations, and payment follow-ups; draft messages remain reviewable before any future sending integration.
 
-- [ ] Audit the domain logic currently in `src/local/api.ts`, validation, SQLite migrations, and the transaction feature branch. Design a shared backend that owns domain validation, transactions, database location, schema versioning, and error semantics; neither surface should duplicate mutation rules or bypass the transaction boundary.
-- [ ] Choose and document the process model, client protocol, startup/discovery, shutdown and crash recovery. Define how either surface starts or finds the backend, what happens if the backend is unavailable, and how concurrent startup and incompatible client/backend versions are handled. If using a local server, bind locally by default, authenticate local clients, and avoid unintended network exposure.
-- [ ] Make both surfaces use `%APPDATA%\dev.a5in.lifeos\lifeos.db` on Windows and the same migration history. Preserve existing user data and test first-run setup, upgrades, and running the CLI with an existing desktop installation.
-- [ ] Define how committed changes reach the desktop's reactive store while it is open, including CLI changes from another process and reconnection after a backend restart. Concurrent CLI and desktop mutations must preserve the transactional guarantees from milestone 1.
-- [ ] Design a small command-line interface for core workflows: discover workspaces and areas, capture and list items, search, complete tasks, and archive/restore. Specify help, errors and exit codes, workspace selection, human-readable output, and machine-readable JSON; confirm command names before implementation.
-- [ ] Package the CLI with the Windows installation and document how to invoke it, including PATH behavior, upgrades and uninstall. Avoid replacing or deleting the user's existing database. Keep the desktop UI and existing functionality intact.
+**Done when:** A quotation, conflicting contract term, accepted amendment, invoice, and partial payment produce the correct outstanding balance and a source-linked explanation of the unresolved discrepancy.
 
-### Done when
+## 7. Bring intelligence into Today
 
-- [ ] The CLI runs without an open desktop window and creates or updates an item that appears in the app; changes in the app are visible to the CLI against the same installation and database.
-- [ ] With both surfaces open, changes propagate without a manual restart and simultaneous writes either commit fully or fail without partial data loss.
-- [ ] Tests cover shared validation and search behavior, migration compatibility, failure and recovery, concurrent access, CLI exit codes and JSON output.
-- [ ] An installed build is tested end to end: install or upgrade, run both surfaces, restart, and verify persisted data. Setup, CLI usage, backend lifecycle, and any remaining limitations are documented.
+**Outcome:** The app makes a small number of useful recommendations grounded in the records above.
+
+- [ ] **Waiting On radar:** Track who owes a reply, approval, deliverable, or payment; show last contact, next follow-up, and the evidence behind it.
+- [ ] **Decision memory:** Surface why a project was paused or an approach rejected, and what would justify revisiting it. Build this into project context.
+- [ ] **One shippable thing:** Suggest the smallest useful outcome that fits today's available time and current blockers. Let the user choose; do not auto-resurrect every promising project.
+- [ ] **Life-maintenance radar:** Use templates and recurrence for renewals, subscriptions, backups, and document deadlines, with configurable lead times.
+- [ ] Add a compact review section to Today with at most three prioritized suggestions and a reason for each. Allow dismiss, snooze, and correction; prevent duplicate alerts across features.
+
+**Done when:** A weekly review answers what needs attention, what is waiting on someone else, and what can realistically ship next, with every recommendation traceable to local records.
+
+## Integration rules
+
+- Keep the current stack. Desktop and CLI call the existing local service; scheduling, ingestion, analysis jobs, and all writes belong there rather than in UI timers or a second backend.
+- Keep existing tasks, notes, events, income, expenses, tags, areas, and item families as the actionable records. Add dedicated metadata/tables for schedules, templates, project sources, and financial reconciliation as their milestones require them.
+- Apply new immutable migrations, preserve existing workspace isolation, and retain transactional writes and live desktop updates. Scope imports, rules, sources, and generated tasks to their owning workspace.
+- Share the project/source pipeline between Context Resurrection and Graveyard Intelligence; reuse its provenance model for Promise-to-Payment. Avoid separate AI memory systems for each feature.
+- Start source retrieval with simple local search; evaluate [SQLite FTS5](https://www.sqlite.org/fts5.html) when source volume warrants it. A vector database is not a prerequisite.
+- Keep local capture, recurrence, rules, and accepted records functional offline. AI enriches evidence; it must not manufacture history, payment status, or completed work. Show source freshness and analysis/model provenance.
+- Preserve the existing navigation: templates in creation flows, recurrence in the item inspector, automations in workspace settings, project intelligence on project views, and actionable exceptions in Today.
+- Verify each milestone with its stated scenario, relevant domain tests, and desktop/CLI behavior before marking it complete. This document is a plan, not evidence that the new features have shipped.
+
+## Explicitly later
+
+A public template marketplace, universal app/activity recording, a general visual workflow builder, autonomous external messaging/payments, and automatic repository rewrites are outside these initial milestones. Add integrations only when a real daily workflow requires them.
