@@ -10,6 +10,19 @@ import { data } from '../src/local/store.ts';
 
 const path = join(mkdtempSync(join(tmpdir(), 'lifeos-upgrade-')), 'lifeos.db');
 const migrations = readMigrations();
+// Upgrade a pre-integration database without guessing ownership of existing tasks.
+const legacyPath = join(mkdtempSync(join(tmpdir(), 'lifeos-followup-upgrade-')), 'lifeos.db');
+const legacy = openStorage(legacyPath, migrations.filter(m => m[0] < 9));
+legacy.db.exec("INSERT INTO obligationFollowups VALUES ('legacy-link','w','e','commitment:c','original-task')");
+const oldChecksums = legacy.db.prepare('SELECT version,hex(checksum) checksum FROM _sqlx_migrations ORDER BY version').all();
+legacy.db.close();
+const upgraded = openStorage(legacyPath, migrations);
+const legacyFollowup = upgraded.db.prepare('SELECT * FROM obligationFollowups').get();
+assert.equal(legacyFollowup.itemId, 'original-task');
+assert.equal(legacyFollowup.managedSnapshot, null);
+assert.equal(legacyFollowup.reconciliation, 'unknown');
+assert.deepEqual(upgraded.db.prepare('SELECT version,hex(checksum) checksum FROM _sqlx_migrations WHERE version<9 ORDER BY version').all(), oldChecksums);
+upgraded.db.close();
 const old = openStorage(path, migrations.slice(0, 2));
 old.db.exec("INSERT INTO profiles (_id,_creationTime,authUserId,isAnonymous,role,suspended,createdAt,updatedAt,activeWorkspaceId) VALUES ('p',1,'local',0,'user',0,1,1,'w'); INSERT INTO workspaces VALUES ('w',1,'p','Existing Life',0,1,1); INSERT INTO items (_id,_creationTime,workspaceId,title,areaId,type,status,parentId,archived,createdAt,updatedAt) VALUES ('original',1,'w','Existing important note',NULL,'Note',NULL,NULL,0,1,1)");
 old.db.close();
@@ -34,7 +47,7 @@ assert.equal(storage.db.prepare('SELECT COUNT(*) n FROM projects WHERE workspace
 assert(storage.db.prepare('SELECT _id FROM items WHERE _id=?').get('original'), 'failed cleanup must preserve original data');
 storage.db.exec('DROP TRIGGER fail_cleanup');
 await api.workspaces.remove({ workspaceId, confirmation: 'Existing Life' });
-for (const table of ['items', 'templates', 'templateInstances', 'recurrenceSchedules', 'recurrenceOccurrences', 'automations', 'automationRuns', 'projects', 'projectSources', 'projectCheckpoints', 'engagements', 'obligationDocuments', 'commitments', 'obligationInvoices', 'obligationPayments', 'paymentAllocations', 'obligationFollowups', 'attentionFeedback', 'itemEstimates']) {
+for (const table of ['items', 'templates', 'templateInstances', 'recurrenceSchedules', 'recurrenceOccurrences', 'automations', 'automationRuns', 'itemMutationEvents', 'projects', 'projectSources', 'projectCheckpoints', 'engagements', 'obligationDocuments', 'commitments', 'obligationInvoices', 'obligationPayments', 'paymentAllocations', 'obligationFollowups', 'obligationReviews', 'attentionFeedback', 'itemEstimates']) {
   assert.equal(storage.db.prepare(`SELECT COUNT(*) n FROM ${table} WHERE workspaceId=?`).get(workspaceId).n, 0, `${table} retained deleted workspace data`);
 }
 assert.equal(data.workspaces.length, 1, 'reactive deletion must leave a dense array');

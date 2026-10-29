@@ -6,6 +6,7 @@ import { addDays, dateOnly, requireWorkspace, previewTemplate } from "./template
 import type { CreateItem, TemplateApply } from "./templates";
 import type { ItemInput } from "./api";
 import type { Id, ItemView } from "./types";
+import { readPersistedItem as readItem, type ItemProvenance } from "./item-events";
 
 const timezoneSchema = z.string().max(100).refine(value => {
   try { new Intl.DateTimeFormat("en", { timeZone: value }).format(); return true; } catch { return false; }
@@ -45,6 +46,7 @@ export interface AutomationDoc {
 }
 export interface AutomationInput {
   explanation: string; date: string; item: ItemView | null; definition: AutomationDefinition;
+  event?: { id: string; origin: ItemProvenance["origin"]; sourceId?: string };
 }
 export interface AutomationRunDoc {
   _id: string; workspaceId: string; automationId: string; eventKey: string;
@@ -55,8 +57,8 @@ export interface AutomationRunDoc {
 }
 interface Dependencies {
   createItem: CreateItem;
-  applyTemplate: (args: TemplateApply) => Promise<Id<"items">>;
-  updateItem: (args: ItemInput & { itemId: Id<"items"> }) => Promise<unknown>;
+  applyTemplate: (args: TemplateApply, provenance?: ItemProvenance) => Promise<Id<"items">>;
+  updateItem: (args: ItemInput & { itemId: Id<"items"> }, provenance?: ItemProvenance) => Promise<unknown>;
 }
 type RuleRow = Omit<AutomationDoc, "definition" | "enabled"> & { definition: string; enabled: number };
 type RunRow = Omit<AutomationRunDoc, "input" | "result"> & { input: string; result: string | null };
@@ -163,58 +165,53 @@ export function createAutomations(deps: Dependencies) {
     const did = z.string().trim().min(1).max(5000).parse(args.did);
     const failed = z.string().trim().max(5000).parse(args.failed ?? "");
     const next = z.string().trim().min(1).max(5000).parse(args.next);
-    return deps.createItem({ workspaceId: args.workspaceId, title: `Checkpoint: ${root.title}`.slice(0, 200), areaId: root.areaId, parentId: root._id, type: "Note", status: null, priority: null, amount: null, financialState: null, dueDate: null, tags: ["checkpoint"], description: `What changed\n${did}\n\nWhat failed\n${failed || "No failure recorded."}\n\nNext action\n${next}` });
+    return deps.createItem({ workspaceId: args.workspaceId, title: `Checkpoint: ${root.title}`.slice(0, 200), areaId: root.areaId, parentId: root._id, type: "Note", status: null, priority: null, amount: null, financialState: null, dueDate: null, tags: ["checkpoint"], description: `What changed\n${did}\n\nWhat failed\n${failed || "No failure recorded."}\n\nNext action\n${next}` }, { origin: "checkpoint", sourceId: root._id });
   };
-  const readItem = async (itemId: string): Promise<ItemView | null> => {
-    const [row] = await select<Record<string, unknown>>("SELECT * FROM items WHERE _id=?", [itemId]);
-    if (!row) return null;
-    const tags = await select<{ name: string }>("SELECT tags.name FROM tags JOIN itemTags ON tags._id=itemTags.tagId WHERE itemTags.itemId=?", [itemId]);
-    return { ...row, archived: Boolean(row.archived), tags: tags.map(t => t.name) } as unknown as ItemView;
-  };
-  const enqueue = async (rule: AutomationDoc, eventKey: string, item: ItemView | null, date: string, now: number) => {
+  const enqueue = async (rule: AutomationDoc, eventKey: string, item: ItemView | null, date: string, now: number, event?: AutomationInput["event"]) => {
     if (!activeWorkspace(rule.workspaceId) || (item && (!activeItem(item) || item.workspaceId !== rule.workspaceId)) || !matches(item, rule.definition)) return;
-    const input: AutomationInput = { definition: rule.definition, item, date, explanation: describe(rule.definition) };
+    const input: AutomationInput = { definition: rule.definition, item, date, explanation: describe(rule.definition), ...(event ? { event } : {}) };
     await run("INSERT OR IGNORE INTO automationRuns (_id,workspaceId,automationId,eventKey,status,attempts,nextAttempt,input,createdAt,updatedAt) VALUES (?,?,?,?,'pending',0,?,?,?,?)", [nanoid(), rule.workspaceId, rule._id, eventKey, now, JSON.stringify(input), now, now]);
   };
-  const afterMutation = async (name: string, args: unknown, result: unknown, previous?: ItemView | null, now = Date.now()) => {
-    if (!["items.create", "items.quickCapture", "items.update", "items.setTaskDone"].includes(name)) return;
-    const input = args as { itemId?: string };
-    const itemId = typeof result === "string" ? result : input.itemId;
-    if (!itemId) return;
+  // Called inside the existing transaction/savepoint, after the item and tags are written.
+  const itemChanged = async (itemId: string, created: boolean, previousStatus?: ItemView["status"], provenance: ItemProvenance = { origin: "user" }, now = Date.now()) => {
     const item = await readItem(itemId);
-    if (!item || !activeItem(item)) return;
-    const created = name === "items.create" || name === "items.quickCapture";
-    const statusChanged = !created && item.type === "Task" && previous !== undefined && (previous?.status ?? null) !== (item.status ?? null);
+    if (!item) return;
+    const statusChanged = !created && item.type === "Task" && (previousStatus ?? null) !== (item.status ?? null);
     if (!created && !statusChanged) return;
+    const eventKey = created ? `created:${item._id}` : `status:${item._id}:${nanoid()}`;
+    await run("INSERT OR IGNORE INTO itemMutationEvents (_id,workspaceId,itemId,kind,origin,sourceId,createdAt) VALUES (?,?,?,?,?,?,?)", [eventKey, item.workspaceId, item._id, created ? "item_created" : "status_changed", provenance.origin, provenance.sourceId ?? null, now]);
+    if (provenance.origin === "automation" || !activeItem(item)) return;
     const rows = await select<RuleRow>("SELECT * FROM automations WHERE workspaceId=? AND enabled=1", [item.workspaceId]);
     for (const row of rows) {
       const rule = parseRule(row);
       if (rule.definition.trigger.kind === (created ? "item_created" : "status_changed")) {
-        await enqueue(rule, created ? `created:${item._id}` : `status:${item._id}:${nanoid()}`, item, localDate(now, rule.definition.trigger.timezone), now);
+        await enqueue(rule, eventKey, item, localDate(now, rule.definition.trigger.timezone), now, { id: eventKey, ...provenance });
       }
     }
   };
   const execute = async (job: AutomationRunDoc, source: ItemView | null) => {
     const input = { ...job.input, item: source ?? job.input.item };
     const action = input.definition.action;
+    const provenance: ItemProvenance = { origin: "automation", sourceId: job._id };
     if (action.kind === "apply_template") {
-      const itemId = await deps.applyTemplate({ workspaceId: job.workspaceId as Id<"workspaces">, templateId: action.templateId, startDate: input.date, areaId: source?.areaId ?? null, variables: Object.fromEntries(Object.entries(action.variables).map(([k, v]) => [k, substitute(v, input)])) });
+      const itemId = await deps.applyTemplate({ workspaceId: job.workspaceId as Id<"workspaces">, templateId: action.templateId, startDate: input.date, areaId: source?.areaId ?? null, variables: Object.fromEntries(Object.entries(action.variables).map(([k, v]) => [k, substitute(v, input)])) }, provenance);
       return { itemId, message: "Template applied." };
     }
     if (action.kind === "update_item") {
       if (!source) throw new Error("This action needs a source item.");
       if (action.status && source.type !== "Task") throw new Error("Only Task status can be updated.");
-      await deps.updateItem({ itemId: source._id, title: source.title, type: source.type ?? null, status: action.status ?? source.status ?? null, areaId: source.areaId, parentId: source.parentId, priority: action.priority ?? source.priority ?? null, dueDate: addDays(input.date, action.dueOffset), description: source.description ?? null, amount: source.amount ?? null, financialState: source.financialState ?? null, tags: [...source.tags] });
+      await deps.updateItem({ itemId: source._id, title: source.title, type: source.type ?? null, status: action.status ?? source.status ?? null, areaId: source.areaId, parentId: source.parentId, priority: action.priority ?? source.priority ?? null, dueDate: addDays(input.date, action.dueOffset), description: source.description ?? null, amount: source.amount ?? null, financialState: source.financialState ?? null, tags: [...source.tags] }, provenance);
       return { itemId: source._id, message: "Allowed item fields updated." };
     }
     const title = substitute(action.title, input);
     if (!title.trim() || title.length > 200) throw new Error("Generated title must contain 1–200 characters.");
-    const itemId = await deps.createItem({ workspaceId: job.workspaceId as Id<"workspaces">, title, type: action.kind === "reminder" ? "Note" : action.type, areaId: source?.areaId ?? null, parentId: null, status: action.kind === "reminder" || action.type !== "Task" ? null : "Todo", priority: action.priority, dueDate: addDays(input.date, action.dueOffset), description: `${substitute(action.description, input)}\n\nAutomation: ${input.definition.name}\nReason: ${input.explanation}${source ? `\nSource item: ${source._id}` : ""}`.trim(), tags: action.tags, amount: null, financialState: null });
+    const itemId = await deps.createItem({ workspaceId: job.workspaceId as Id<"workspaces">, title, type: action.kind === "reminder" ? "Note" : action.type, areaId: source?.areaId ?? null, parentId: null, status: action.kind === "reminder" || action.type !== "Task" ? null : "Todo", priority: action.priority, dueDate: addDays(input.date, action.dueOffset), description: `${substitute(action.description, input)}\n\nAutomation: ${input.definition.name}\nReason: ${input.explanation}${source ? `\nSource item: ${source._id}` : ""}`.trim(), tags: action.tags, amount: null, financialState: null }, provenance);
     return { itemId, message: action.kind === "reminder" ? "In-app reminder added." : "Item created." };
   };
   const tick = async ({ now = Date.now() }: { now?: number } = {}) => {
     let queued = 0; let completed = 0; let failed = 0;
     const rules = (await select<RuleRow>("SELECT * FROM automations WHERE enabled=1 ORDER BY createdAt")).map(parseRule);
+    const generated = new Set((await select<{ itemId: string }>("SELECT itemId FROM itemMutationEvents WHERE origin='automation' AND kind='item_created'")).map(e => e.itemId));
     for (const rule of rules) {
       if (!activeWorkspace(rule.workspaceId)) continue;
       const trigger = rule.definition.trigger;
@@ -223,7 +220,7 @@ export function createAutomations(deps: Dependencies) {
         await enqueue(rule, `schedule:${rule.nextRunDate}`, null, today, now); queued++;
         await run("UPDATE automations SET nextRunDate=? WHERE _id=?", [nextWeekday(today, trigger.weekday, false), rule._id]);
       } else if (trigger.kind === "due_date" || trigger.kind === "inactivity") {
-        const candidates = data.items.filter(item => item.workspaceId === rule.workspaceId && activeItem(item) && item.status !== "Done" && (trigger.kind !== "inactivity" || !item.parentId));
+        const candidates = data.items.filter(item => item.workspaceId === rule.workspaceId && !generated.has(item._id) && activeItem(item) && item.status !== "Done" && (trigger.kind !== "inactivity" || !item.parentId));
         for (const item of candidates) {
           if (trigger.kind === "due_date") {
             if (item.dueDate && item.dueDate <= today) { await enqueue(rule, `due:${item._id}:${item.dueDate}`, item, today, now); queued++; }
@@ -256,5 +253,5 @@ export function createAutomations(deps: Dependencies) {
     }
     return { queued, completed, failed };
   };
-  return { list, runs, recipes, preview, save, setEnabled, remove, retry, checkpoint, afterMutation, tick };
+  return { list, runs, recipes, preview, save, setEnabled, remove, retry, checkpoint, itemChanged, tick };
 }

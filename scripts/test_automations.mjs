@@ -50,14 +50,14 @@ const delivery = await tx(() => createItem(input('Deliver project', ['delivery']
 const before = JSON.parse(JSON.stringify(data.items.find(item => item._id === delivery)));
 await tx(async () => {
   storage.db.prepare("UPDATE items SET status='Done' WHERE _id=?").run(delivery);
-  await engine.afterMutation('items.setTaskDone', { itemId: delivery, done: true }, null, before, now);
+  await engine.itemChanged(delivery, false, before.status, { origin: 'user' }, now);
 });
 assert.equal(data.automationRuns.length, 1);
 assert.equal(data.automationRuns[0].status, 'pending');
 await tx(() => engine.tick({ now }));
 assert.equal(data.automationRuns[0].status, 'completed');
 assert.equal(data.items.filter(item => item.title.startsWith('Follow up on payment')).length, 1);
-await tx(() => engine.afterMutation('items.setTaskDone', { itemId: delivery, done: true }, null, data.items.find(item => item._id === delivery), now));
+await tx(() => engine.itemChanged(delivery, false, data.items.find(item => item._id === delivery).status, { origin: 'user' }, now));
 await tx(() => engine.tick({ now }));
 assert.equal(data.automationRuns.length, 1, 'Repeated Done does not retrigger completion');
 
@@ -71,7 +71,7 @@ assert.equal(data.items.filter(item => item.parentId === data.items.find(item =>
 
 const failureRule = await tx(() => engine.save({ workspaceId, enabled: true, definition: automationSchema.parse({ name: 'Retry test', trigger: { kind: 'item_created', timezone: 'UTC' }, conditions: { tags: ['failure-test'] }, action: { kind: 'create_item', title: 'Retry output' } }) }));
 const failureSource = await tx(() => createItem(input('Trigger retry', ['failure-test'])));
-await tx(() => engine.afterMutation('items.create', {}, failureSource, undefined, now));
+await tx(() => engine.itemChanged(failureSource, true, undefined, { origin: 'user' }, now));
 const count = data.items.length;
 failAfterInsert = true;
 await tx(() => engine.tick({ now }));
@@ -96,7 +96,7 @@ await tx(() => engine.tick({ now })); await tx(() => engine.tick({ now }));
 assert.equal(data.automationRuns.filter(job => job.automationId === inactivityRule).length, 1, 'Same inactivity episode creates one reminder');
 const pendingRule = await tx(() => engine.save({ workspaceId, enabled: true, definition: automationSchema.parse({ name: 'Pause test', trigger: { kind: 'item_created' }, action: { kind: 'reminder' } }) }));
 const pendingSource = await tx(() => createItem(input('Pending source')));
-await tx(() => engine.afterMutation('items.create', {}, pendingSource, undefined, now));
+await tx(() => engine.itemChanged(pendingSource, true, undefined, { origin: 'user' }, now));
 await tx(() => engine.setEnabled({ workspaceId, automationId: pendingRule, enabled: false }));
 assert(data.automationRuns.filter(job => job.automationId === pendingRule).every(job => job.status === 'cancelled'));
 

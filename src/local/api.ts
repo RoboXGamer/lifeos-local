@@ -6,8 +6,9 @@ import { createTemplates, listTemplates, previewTemplate } from "./templates";
 import { createRecurrence, listSchedules, listOccurrences } from "./recurrence";
 import { createAutomations } from "./automations";
 import { createProjects, listProjects, listProjectSources, listProjectCheckpoints, resumeProject, reportProject } from "./projects";
-import { createObligations, listEngagements, obligationDetails } from "./obligations";
+import { createObligations, listEngagements, obligationDetails, obsoleteObligationItemIds } from "./obligations";
 import { createAttention, buildAttention } from "./attention";
+import { readPersistedItem, type ItemProvenance } from "./item-events";
 import type {
   AreaDoc,
   Id,
@@ -107,9 +108,11 @@ const listToday = (args: {
   const date = timestamp(args.date);
   if (!date) return [];
   const areas = visibleAreaIds(args.workspaceId);
+  const obsolete = obsoleteObligationItemIds(args.workspaceId);
   return itemsOf(args.workspaceId).filter(
     (item) =>
       item.dueDate === date &&
+      !obsolete.has(item._id) &&
       !item.archived &&
       (item.areaId === null || areas.has(item.areaId)),
   );
@@ -124,11 +127,13 @@ const listUpcoming = (args: {
   if (!afterDate) return [];
   const limit = Math.max(1, Math.min(Math.floor(args.limit ?? 150), 200));
   const areas = visibleAreaIds(args.workspaceId);
+  const obsolete = obsoleteObligationItemIds(args.workspaceId);
   return itemsOf(args.workspaceId)
     .filter(
       (item) =>
         !!item.dueDate &&
         item.dueDate > afterDate &&
+        !obsolete.has(item._id) &&
         !item.archived &&
         (item.type === "Task" || item.type === "Event") &&
         (item.areaId === null || areas.has(item.areaId)),
@@ -302,11 +307,13 @@ const quickCapture = async (args: {
     `INSERT INTO items (${ITEM_COLUMNS}) VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, ?, ?)`,
     [itemId, now, args.workspaceId, cleanTitle(args.title), now, now],
   );
+  await automations.itemChanged(itemId, true);
   return itemId;
 };
 
 const create = async (
   args: { workspaceId: Id<"workspaces"> } & ItemInput,
+  provenance: ItemProvenance = { origin: "user" },
 ): Promise<Id<"items">> => {
   await requireItemCapacity(args.workspaceId);
   let areaId = args.areaId;
@@ -348,6 +355,7 @@ const create = async (
     ],
   );
   await setItemTags(itemId, args.workspaceId, args.tags);
+  await automations.itemChanged(itemId, true, undefined, provenance);
   return itemId;
 };
 
@@ -356,8 +364,10 @@ const update = async (
     itemId: Id<"items">;
     expectedUpdatedAt?: number;
   } & ItemInput,
+  provenance: ItemProvenance = { origin: "user" },
 ): Promise<null> => {
   const item = itemOrThrow(args.itemId);
+  const previous = await readPersistedItem(args.itemId);
   const currentFamily = family(item);
   let areaId = args.areaId;
   let parentId = args.parentId;
@@ -418,6 +428,7 @@ const update = async (
     }
   }
   await setItemTags(item._id, item.workspaceId, args.tags);
+  await automations.itemChanged(item._id, false, previous?.status, provenance);
   return null;
 };
 
@@ -427,11 +438,13 @@ const setTaskDone = async (args: {
 }): Promise<null> => {
   const item = itemOrThrow(args.itemId);
   if (item.type !== "Task") throw new Error("Only Tasks can be completed.");
+  const previous = await readPersistedItem(item._id);
   await run("UPDATE items SET status = ?, updatedAt = ? WHERE _id = ?", [
     args.done ? "Done" : "Todo",
     Date.now(),
     item._id,
   ]);
+  await automations.itemChanged(item._id, false, previous?.status);
   return null;
 };
 
@@ -824,7 +837,7 @@ const workspacesRemove = async (args: {
   await run("DELETE FROM templateInstances WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM templates WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM projectPlanTasks WHERE projectId IN (SELECT _id FROM projects WHERE workspaceId=?)", [workspace._id]);
-  for (const table of ["recurrenceOccurrences", "recurrenceSchedules", "automationRuns", "automations", "projectSources", "projectCheckpoints", "projects", "paymentAllocations", "obligationPayments", "obligationInvoices", "obligationFollowups", "commitments", "obligationDocuments", "engagements", "attentionFeedback", "itemEstimates"]) {
+  for (const table of ["obligationReviews", "itemMutationEvents", "recurrenceOccurrences", "recurrenceSchedules", "automationRuns", "automations", "projectSources", "projectCheckpoints", "projects", "paymentAllocations", "obligationPayments", "obligationInvoices", "obligationFollowups", "commitments", "obligationDocuments", "engagements", "attentionFeedback", "itemEstimates"]) {
     await run(`DELETE FROM ${table} WHERE workspaceId=?`, [workspace._id]);
   }
   await run("DELETE FROM items WHERE workspaceId = ?", [workspace._id]);
@@ -907,11 +920,8 @@ function transactional<A, R>(name: string, mutation: (args: A) => Promise<R>): (
     if (!remoteMutation) {
       if (!hasStorageAdapter()) throw new Error("The local service is not connected");
       return transaction(async () => {
-        const itemId = (args as { itemId?: string })?.itemId;
-        const previous = itemId ? data.items.find(i => i._id === itemId) : undefined;
         const result = await mutation(args);
         await recurrence.afterMutation(name, args, result);
-        await automations.afterMutation(name, args, result, previous);
         return result;
       }, reload);
     }
@@ -945,7 +955,7 @@ const templates = createTemplates(create);
 const recurrence = createRecurrence(create);
 const automations = createAutomations({ createItem: create, applyTemplate: templates.apply, updateItem: update });
 const projects = createProjects({ createItem: create });
-const obligations = createObligations(create);
+const obligations = createObligations(create, update);
 const attention = createAttention();
 
 // Service-only entry point: the clock is never accepted from remote clients.

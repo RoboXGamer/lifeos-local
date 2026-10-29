@@ -22,6 +22,8 @@ Open **Automations** and add a recipe: Friday weekly review, delivery-to-payment
 
 Rules support schedule, creation, task-status, due-date, and inactivity triggers; workspace/area/type/tag/status conditions; and item, template, allowed-field update, or in-app reminder actions. Run history explains what ran, why, and any retry/error. Internal action writes do not recursively trigger rules. Jobs survive restart, deduplicate effects, and roll back failed actions before retrying.
 
+Creation rules also receive user-applied template items, recurring occurrences, checkpoints, accepted revival tasks, obligation follow-ups, and manually confirmed payment items. Each creation/status event has a durable identity and internal origin/source ID, recorded in the same transaction as the item and queued runs. Template instances and recurring occurrence keys keep their existing identity rules: retrying a failed transaction creates nothing twice; applying a template again intentionally creates a fresh family. Automation-created items/templates and automation status updates retain their run ID and do not cascade into other event rules. Automation-created items are also excluded from due-date/inactivity scans to prevent chains on later ticks; a later explicit user status change can trigger a status rule.
+
 Top-level items also have **Save a checkpoint**. Record what changed, what failed, and the next action. It becomes a child Note that richer project memory can reuse.
 
 ## Context Resurrection and Graveyard Intelligence
@@ -32,6 +34,8 @@ Open **Projects**, register an existing top-level item family, and specify the s
 
 The resume brief shows recorded work, failed attempts, stopping reason, Git reference, and next action. With no checkpoint, it labels its next step as a suggestion. Source snapshots retain hashes, revisions, missing/stale indicators, and deletion controls. A snapshot describes capture time, not a continuously monitored current state.
 
+Resume, revival planning, and Today's decision memory select the same latest checkpoint, whether it is a structured project checkpoint or a quick child Note. Selection uses creation time, then structured checkpoints before quick notes on equal timestamps, then descending immutable ID within each kind. Source identity is retained; an older stopping reason is not combined with a newer note's next action. Historical notes remain intact. A note without a parsed next action produces a suggested next step rather than claiming one was recorded.
+
 The revival review separates reusable assets, uncertain parts, product value, static readiness, and a proposed shipping path. Accepting a reviewed plan creates deduplicated tasks. Dependency support remains unknown until an explicit upstream check is added; static inspection does not prove that a build or deployment works. Real three-repository revival trials remain pending.
 
 Automatic editor/browser/terminal adapters, online dependency-support lookup, and optional model providers are follow-up scope.
@@ -41,6 +45,10 @@ Automatic editor/browser/terminal adapters, online dependency-support lookup, an
 Open **Promise to payment** and create a client engagement. Paste conversations or import text/text PDFs. Source revisions and exact passages remain available. Scanned PDFs need pasted text; extraction currently uses explicit currency amounts and ISO dates, with missing terms left unknown.
 
 Extraction creates drafts. Review responsible party, amount/currency, dates, scope, and conditions before accepting. An accepted amendment can replace earlier accepted terms; a newer source alone does not supersede an agreement. Potential conflicts and invoice/accepted-term differences appear in **Needs review**.
+
+New obligation follow-ups retain a baseline of the generated task. Editing accepted terms updates its title and terms excerpt only while those fields still match that baseline; a changed obligation deadline updates a still-managed task date. The initial follow-up date remains as chosen until the obligation deadline changes. Manual field edits are preserved independently, with divergence shown in **Needs review**. Completed, in-progress, archived, or retyped tasks are preserved for manual review. Older follow-ups without a baseline have unknown ownership and are never silently adopted. Reviewed before/after terms are retained in an audit history; retries of an identical review add no duplicate review or task.
+
+Cancelling or superseding a commitment archives its untouched generated follow-up with an audit reason. Customized tasks, completed work, and tasks with child history remain available in ordinary lists and history; obsolete commitment follow-ups are excluded from Today/Upcoming recommendations. Supersession retains the old link and requires an explicit **Create follow-up** for the replacement, with its own deduplicated task. Reaccepting cancelled terms does not reopen archived work automatically. These transitions never rewrite confirmed payments, invoices, or payment allocations. Full terms remain in the ledger when the task excerpt must be shortened.
 
 Record invoices separately from confirmed payments. Unique transaction references prevent duplicate imports. Match receipts to invoices, including partial payments; record refunds against their original receipt and allocation. The ledger uses integer minor units and keeps currencies separate. Linked ordinary financial items appear in LifeOS; changing or deleting one raises a reconciliation exception rather than silently rewriting the ledger.
 
@@ -75,7 +83,9 @@ lifeos project-report PROJECT_ID
 
 ## Verification
 
-Verified locally on Windows: typecheck, ten isolated domain suites, the bundled service build, authenticated live updates, the compiled CLI/background-service/restart scenario, and native desktop capture in both directions plus all six productivity pages. Packaged installation/upgrade, another machine, real sign-in startup, and a three-real-repository revival trial remain unverified.
+The productivity runner includes eleven isolated domain/integration suites. The cross-feature suite exercises templates and recurrence through automation rules, automation action suppression, quick/structured checkpoint parity, accepted obligation amendment/cancellation/supersession, customized/completed task preservation, injected late failures, retries, workspace isolation, and restart persistence. Migration checks cover both the original schema and pre-integration follow-ups with unknown ownership.
+
+The existing local acceptance checks cover typecheck, the bundled service build, authenticated live updates, the compiled CLI/background-service/restart scenario, and native desktop capture in both directions plus all six productivity pages. Packaged installation/upgrade, another machine, real sign-in startup, and a three-real-repository revival trial remain separate acceptance work. Passing these scenarios does not establish universal cross-feature synchronization.
 
 ```text
 pnpm typecheck

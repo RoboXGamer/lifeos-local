@@ -4,6 +4,8 @@ import { data } from "./store";
 import { run, select } from "./db";
 import { dateOnly, requireWorkspace, type CreateItem } from "./templates";
 import type { Id } from "./types";
+import type { ItemInput } from "./api";
+import { readPersistedItem, type ItemProvenance } from "./item-events";
 
 export interface EngagementDoc { _id: string; workspaceId: string; client: string; name: string; createdAt: number }
 export interface ObligationDocument { _id: string; workspaceId: string; engagementId: string; label: string; kind: string; body: string; contentHash: string; version: number; supersedesId: string | null; createdAt: number }
@@ -12,6 +14,24 @@ export interface InvoiceDoc { _id: string; workspaceId: string; engagementId: st
 export interface PaymentDoc { _id: string; workspaceId: string; engagementId: string; reference: string; amountMinor: number; currency: string; date: string; kind: "receipt" | "refund"; receiptId: string | null; itemId: string; createdAt: number }
 export interface AllocationDoc { _id: string; workspaceId: string; paymentId: string; invoiceId: string; amountMinor: number }
 export interface ObligationException { key: string; title: string; detail: string; sourceIds: string[]; commitmentId?: string; invoiceId?: string }
+export interface ObligationFollowupDoc {
+  _id: string; workspaceId: string; engagementId: string; exceptionKey: string; itemId: string;
+  managedSnapshot: string | null; reconciliation: string; auditReason: string; reconciledAt: number | null;
+}
+export interface ObligationReviewDoc { _id: string; workspaceId: string; engagementId: string; commitmentId: string; previous: string; current: string; createdAt: number }
+
+/** Obsolete commitment tasks stay searchable, but are no longer source recommendations. */
+export function obsoleteObligationItemIds(workspaceId: string): Set<string> {
+  const obsolete = new Set(data.commitments.filter(c => c.workspaceId === workspaceId && (c.status === "cancelled" || c.status === "superseded")).map(c => `commitment:${c._id}`));
+  return new Set(data.obligationFollowups.filter(f => f.workspaceId === workspaceId && obsolete.has(f.exceptionKey)).map(f => f.itemId));
+}
+function snapshot(item: ItemInput): ItemInput {
+  return { title: item.title, description: item.description ?? null, dueDate: item.dueDate ?? null, type: item.type ?? null, status: item.status ?? null, areaId: item.areaId ?? null, parentId: item.parentId ?? null, priority: item.priority ?? null, amount: item.amount ?? null, financialState: item.financialState ?? null, tags: [...item.tags].map(t => t.toLowerCase()).sort() };
+}
+function followupDescription(c: CommitmentDoc): string {
+  const text = `Source: ${c.documentId}\nReviewed terms: ${c.title}\nParty: ${c.party}\nAmount: ${c.amountMinor === null || !c.currency ? "Unknown" : formatMoney(c.amountMinor, c.currency)}\nDue: ${c.dueDate ?? "Unknown"}\n\nConditions: ${c.conditions}\n\nSource passage: ${c.quote}`;
+  return text.length <= 5000 ? text.trim() : `${text.slice(0, 4900).trim()}\n\nExcerpt shortened; full terms and passage remain in Promise to payment.`;
+}
 type Scope = { workspaceId: Id<"workspaces">; engagementId: string };
 const nameSchema = z.string().trim().min(1).max(160);
 const currencySchema = z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/);
@@ -45,6 +65,8 @@ export function obligationDetails(args: Scope) {
   const payments = data.obligationPayments.filter(p => p.engagementId === client._id && p.workspaceId === args.workspaceId).map(payment => ({ ...payment, unallocatedMinor: payment.amountMinor - data.paymentAllocations.filter(a => a.paymentId === payment._id).reduce((sum, a) => sum + a.amountMinor, 0) }));
   const totals = [...new Set(invoices.filter(i => i.state === "issued").map(i => i.currency))].map(currency => ({ currency, invoicedMinor: invoices.filter(i => i.currency === currency && i.state === "issued").reduce((s, i) => s + i.amountMinor, 0), outstandingMinor: invoices.filter(i => i.currency === currency && i.state === "issued").reduce((s, i) => s + i.outstandingMinor, 0) }));
   const exceptions: ObligationException[] = [];
+  const followups = data.obligationFollowups.filter(f => f.workspaceId === args.workspaceId && f.engagementId === client._id);
+  for (const f of followups.filter(f => f.reconciliation === "diverged")) exceptions.push({ key: `followup-diverged:${f._id}`, title: "Review changed obligation follow-up", detail: f.auditReason, sourceIds: [f.itemId], commitmentId: f.exceptionKey.startsWith("commitment:") ? f.exceptionKey.slice(11) : undefined });
   const current = commitments.filter(c => c.status === "draft" || c.status === "accepted");
   for (let i = 0; i < current.length; i++) for (let j = i + 1; j < current.length; j++) {
     const a = current[i], b = current[j];
@@ -68,7 +90,10 @@ export function obligationDetails(args: Scope) {
     if (!item || item.archived || item.type !== expectedType || item.financialState !== expectedState || item.amount !== payment.amountMinor / 10 ** currencyDecimals(payment.currency)) exceptions.push({ key: `payment-record:${payment._id}:${item?.updatedAt ?? "missing"}`, title: `Review changed financial item: ${payment.reference}`, detail: `The ledger retains the confirmed ${payment.kind} of ${formatMoney(payment.amountMinor, payment.currency)}, but its linked financial item is missing, archived, or has different fields. Reconcile the evidence before changing recorded money.`, sourceIds: [] });
   }
   const timeline = [...documents.map(d => ({ date: d.createdAt, title: `${d.label} · version ${d.version}`, sourceId: d._id })), ...commitments.filter(c => c.status !== "draft").map(c => ({ date: c.updatedAt, title: `${c.status}: ${c.title}`, sourceId: c.documentId })), ...payments.map(p => ({ date: p.createdAt, title: `${p.kind}: ${p.reference} · ${formatMoney(p.amountMinor, p.currency)}`, sourceId: "" }))].sort((a, b) => a.date - b.date);
-  return { engagement: client, documents, commitments, invoices, payments, totals, exceptions, timeline };
+  const reviews = data.obligationReviews.filter(r => r.workspaceId === args.workspaceId && r.engagementId === client._id);
+  timeline.push(...reviews.map(r => ({ date: r.createdAt, title: `Reviewed terms: ${JSON.parse(r.current).status} / ${JSON.parse(r.current).title}`, sourceId: commitments.find(c => c._id === r.commitmentId)?.documentId ?? "" })), ...followups.filter(f => f.auditReason).map(f => ({ date: f.reconciledAt ?? 0, title: `Follow-up: ${f.auditReason}`, sourceId: f.itemId })));
+  timeline.sort((a, b) => a.date - b.date);
+  return { engagement: client, documents, commitments, invoices, payments, totals, exceptions, timeline, followups, reviews };
 }
 
 let pdfExtractor: ((bytes: Uint8Array) => Promise<string>) | undefined;
@@ -80,7 +105,39 @@ function moneyFromText(text: string): { amountMinor: number | null; currency: st
   const currency = ({ "₹": "INR", "$": "USD", "€": "EUR", "£": "GBP" } as Record<string, string>)[match[1]] ?? match[1].toUpperCase();
   try { return { amountMinor: parseMoney(match[2], currency), currency }; } catch { return { amountMinor: null, currency: null }; }
 }
-export function createObligations(createItem: CreateItem) {
+export function createObligations(createItem: CreateItem, updateItem: (args: ItemInput & { itemId: Id<"items"> }, provenance?: ItemProvenance) => Promise<unknown>) {
+  const reconcileFollowup = async (old: CommitmentDoc, current: CommitmentDoc) => {
+    const [link] = await select<ObligationFollowupDoc>("SELECT * FROM obligationFollowups WHERE workspaceId=? AND engagementId=? AND exceptionKey=?", [current.workspaceId, current.engagementId, `commitment:${current._id}`]);
+    if (!link) return;
+    const item = await readPersistedItem(link.itemId);
+    const baseline: ItemInput | null = link.managedSnapshot ? JSON.parse(link.managedSnapshot) : null;
+    let reconciliation = "managed", reason = "Accepted terms reconciled with source-managed fields.";
+    const retired = current.status === "cancelled" || current.status === "superseded";
+    if (!item || item.workspaceId !== current.workspaceId) { reconciliation = "diverged"; reason = "Linked task is missing; retained the source link and history."; }
+    else if (item.status === "Done") { reconciliation = retired ? "preserved" : "diverged"; reason = `${current.status} terms; completed work preserved. Review whether a new task is needed.`; }
+    else if (!baseline) { reconciliation = "diverged"; reason = `${current.status} terms; ownership of this older follow-up is unknown. Review it manually.`; }
+    else if (retired) {
+      const [children] = await select<{ n: number }>("SELECT COUNT(*) n FROM items WHERE workspaceId=? AND parentId=?", [current.workspaceId, item._id]);
+      if (!item.archived && JSON.stringify(snapshot(item as ItemInput)) === JSON.stringify(baseline) && !children.n) {
+        await run("UPDATE items SET archived=1,updatedAt=? WHERE _id=? AND workspaceId=?", [Date.now(), item._id, current.workspaceId]);
+        reconciliation = "archived"; reason = `Archived obsolete source-managed follow-up: obligation ${current.status}.`;
+      } else { reconciliation = "diverged"; reason = `Obligation ${current.status}; task has manual changes, an archive, or child history and was preserved. It is excluded from Today/Upcoming recommendations.`; }
+    } else if (item.archived || item.type !== "Task" || item.status !== "Todo") {
+      reconciliation = "diverged"; reason = "Accepted terms changed; task is archived, retyped, or already in progress. Work preserved for manual review.";
+    } else {
+      const actual = snapshot(item as ItemInput);
+      const desired = { title: current.title, description: followupDescription(current), dueDate: old.dueDate !== current.dueDate ? current.dueDate : baseline.dueDate };
+      const next = { ...actual };
+      const managed = { ...baseline };
+      if (actual.title === baseline.title) next.title = managed.title = desired.title;
+      if (actual.description === baseline.description) next.description = managed.description = desired.description;
+      if (actual.dueDate === baseline.dueDate) next.dueDate = managed.dueDate = desired.dueDate;
+      if (JSON.stringify(next) !== JSON.stringify(actual)) await updateItem({ ...next, itemId: item._id }, { origin: "obligation", sourceId: current._id });
+      if (JSON.stringify(next) !== JSON.stringify(managed)) { reconciliation = "diverged"; reason = "Accepted terms reconciled where still source-managed; manual task changes were preserved. Compare the task with the accepted obligation."; }
+      await run("UPDATE obligationFollowups SET managedSnapshot=? WHERE _id=?", [JSON.stringify(managed), link._id]);
+    }
+    await run("UPDATE obligationFollowups SET reconciliation=?,auditReason=?,reconciledAt=? WHERE _id=?", [reconciliation, reason, Date.now(), link._id]);
+  };
   const create = async (args: { workspaceId: Id<"workspaces">; client: string; name: string }) => {
     requireWorkspace(args.workspaceId); const id = nanoid();
     await run("INSERT INTO engagements VALUES (?,?,?,?,?)", [id, args.workspaceId, nameSchema.parse(args.client), nameSchema.parse(args.name), Date.now()]); return id;
@@ -133,12 +190,22 @@ export function createObligations(createItem: CreateItem) {
     const amountMinor = args.amount !== undefined && args.amount !== "" ? parseMoney(args.amount, currency ?? "INR") : old.amountMinor;
     if (amountMinor !== null && !currency) throw new Error("Choose a currency for this amount.");
     const dueDate = args.dueDate === undefined ? old.dueDate : args.dueDate ? dateOnly(args.dueDate) : null;
+    const current: CommitmentDoc = { ...old, status, title: nameSchema.parse(args.title ?? old.title), party: nameSchema.parse(args.party ?? old.party), amountMinor, currency, dueDate, conditions: z.string().max(20000).parse(args.conditions ?? old.conditions), supersedesId: args.supersedesId ?? old.supersedesId };
+    if (JSON.stringify(current) === JSON.stringify(old)) return null;
+    current.updatedAt = Date.now();
     if (args.supersedesId) {
       const [previous] = await select<CommitmentDoc>("SELECT * FROM commitments WHERE _id=? AND workspaceId=? AND engagementId=?", [args.supersedesId, args.workspaceId, args.engagementId]);
-      if (!previous || previous._id === old._id || previous.kind !== old.kind || previous.status !== "accepted" || status !== "accepted") throw new Error("Choose an accepted commitment of the same kind to replace.");
-      await run("UPDATE commitments SET status='superseded',updatedAt=? WHERE _id=?", [Date.now(), previous._id]);
+      if (!previous || previous._id === old._id || previous.kind !== old.kind || status !== "accepted" || (previous.status !== "accepted" && !(old.supersedesId === previous._id && previous.status === "superseded"))) throw new Error("Choose an accepted commitment of the same kind to replace.");
+      if (previous.status === "accepted") {
+        const replaced: CommitmentDoc = { ...previous, status: "superseded", updatedAt: current.updatedAt };
+        await run("UPDATE commitments SET status='superseded',updatedAt=? WHERE _id=?", [replaced.updatedAt, previous._id]);
+        await run("INSERT INTO obligationReviews VALUES (?,?,?,?,?,?,?)", [nanoid(), args.workspaceId, args.engagementId, previous._id, JSON.stringify(previous), JSON.stringify(replaced), replaced.updatedAt]);
+        await reconcileFollowup(previous, replaced);
+      }
     }
-    await run("UPDATE commitments SET status=?,title=?,party=?,amountMinor=?,currency=?,dueDate=?,conditions=?,supersedesId=?,updatedAt=? WHERE _id=?", [status, nameSchema.parse(args.title ?? old.title), nameSchema.parse(args.party ?? old.party), amountMinor, currency, dueDate, z.string().max(20000).parse(args.conditions ?? old.conditions), args.supersedesId ?? old.supersedesId, Date.now(), old._id]);
+    await run("UPDATE commitments SET status=?,title=?,party=?,amountMinor=?,currency=?,dueDate=?,conditions=?,supersedesId=?,updatedAt=? WHERE _id=?", [current.status, current.title, current.party, current.amountMinor, current.currency, current.dueDate, current.conditions, current.supersedesId, current.updatedAt, old._id]);
+    await run("INSERT INTO obligationReviews VALUES (?,?,?,?,?,?,?)", [nanoid(), args.workspaceId, args.engagementId, old._id, JSON.stringify(old), JSON.stringify(current), current.updatedAt]);
+    await reconcileFollowup(old, current);
     return null;
   };
   const addInvoice = async (args: Scope & { reference: string; amount: string; currency: string; dueDate?: string; documentId?: string }) => {
@@ -178,18 +245,19 @@ export function createObligations(createItem: CreateItem) {
       const [refunds] = await select<{ total: number }>("SELECT COALESCE(SUM(amountMinor),0) total FROM obligationPayments WHERE receiptId=?", [args.receiptId ?? ""]);
       if (!receipt || receipt.currency !== currency || refunds.total + amountMinor > receipt.amountMinor) throw new Error("Refund exceeds the original receipt or uses a different currency.");
     }
-    const itemId = await createItem({ workspaceId: args.workspaceId, title: `${kind === "refund" ? "Refund to" : "Payment from"} ${client.client}: ${reference}`.slice(0, 200), type: kind === "refund" ? "Expense" : "Income", amount: amountMinor / 10 ** currencyDecimals(currency), financialState: kind === "refund" ? "Spent" : "Received", dueDate: args.date, description: `Manually confirmed ${currency} ${args.amount}. Engagement: ${client.name}. Reference: ${reference}.`, parentId: null, areaId: null, status: null, priority: null, tags: ["client", "payment"] });
+    const itemId = await createItem({ workspaceId: args.workspaceId, title: `${kind === "refund" ? "Refund to" : "Payment from"} ${client.client}: ${reference}`.slice(0, 200), type: kind === "refund" ? "Expense" : "Income", amount: amountMinor / 10 ** currencyDecimals(currency), financialState: kind === "refund" ? "Spent" : "Received", dueDate: args.date, description: `Manually confirmed ${currency} ${args.amount}. Engagement: ${client.name}. Reference: ${reference}.`, parentId: null, areaId: null, status: null, priority: null, tags: ["client", "payment"] }, { origin: "obligation", sourceId: `${client._id}:${reference}` });
     const id = nanoid(); await run("INSERT INTO obligationPayments VALUES (?,?,?,?,?,?,?,?,?,?,?)", [id, args.workspaceId, client._id, reference, amountMinor, currency, args.date, kind, args.receiptId ?? null, itemId, Date.now()]);
     if (args.invoiceId) await allocate({ ...args, paymentId: id, invoiceId: args.invoiceId, amount: args.amount }); return id;
   };
   const createFollowup = async (args: Scope & { exceptionKey?: string; commitmentId?: string; dueDate: string }) => {
     const details = obligationDetails(args); dateOnly(args.dueDate);
-    let key = args.exceptionKey ?? `commitment:${args.commitmentId}`, title = "", description = "";
-    if (args.commitmentId) { const c = details.commitments.find(c => c._id === args.commitmentId && c.status === "accepted"); if (!c) throw new Error("Accept this obligation before making a task."); title = c.title; description = `Source: ${c.documentId}\n${c.quote}\n${c.conditions}`; }
+    let key = args.commitmentId ? `commitment:${args.commitmentId}` : args.exceptionKey ?? "", title = "", description = "";
+    if (args.commitmentId) { const c = details.commitments.find(c => c._id === args.commitmentId && c.status === "accepted"); if (!c) throw new Error("Accept this obligation before making a task."); title = c.title; description = followupDescription(c); }
     else { const issue = details.exceptions.find(e => e.key === args.exceptionKey); if (!issue) throw new Error("Exception no longer applies."); title = issue.title; description = `${issue.detail}\nSources: ${issue.sourceIds.join(", ")}`; }
     const [existing] = await select<{ itemId: string }>("SELECT itemId FROM obligationFollowups WHERE workspaceId=? AND exceptionKey=?", [args.workspaceId, key]); if (existing) return existing.itemId;
-    const itemId = await createItem({ workspaceId: args.workspaceId, title: title.slice(0, 200), description, type: "Task", status: "Todo", areaId: null, parentId: null, priority: 2, dueDate: args.dueDate, amount: null, financialState: null, tags: ["client", "waiting"] });
-    await run("INSERT INTO obligationFollowups VALUES (?,?,?,?,?)", [nanoid(), args.workspaceId, args.engagementId, key, itemId]);
+    const itemId = await createItem({ workspaceId: args.workspaceId, title: title.slice(0, 200), description, type: "Task", status: "Todo", areaId: null, parentId: null, priority: 2, dueDate: args.dueDate, amount: null, financialState: null, tags: ["client", "waiting"] }, { origin: "obligation", sourceId: key });
+    const persisted = await readPersistedItem(itemId);
+    await run("INSERT INTO obligationFollowups (_id,workspaceId,engagementId,exceptionKey,itemId,managedSnapshot,reconciliation,auditReason,reconciledAt) VALUES (?,?,?,?,?,?,?,?,?)", [nanoid(), args.workspaceId, args.engagementId, key, itemId, JSON.stringify(snapshot(persisted as ItemInput)), "managed", "Created reviewed follow-up with source-managed title, description and follow-up date.", Date.now()]);
     if (args.commitmentId) await run("UPDATE commitments SET itemId=? WHERE _id=?", [itemId, args.commitmentId]); return itemId;
   };
   return { create, addDocument, extract, review, addInvoice, recordPayment, allocate, createFollowup };

@@ -4,6 +4,7 @@ import { data } from "./store";
 import { run, select } from "./db";
 import { requireWorkspace, type CreateItem } from "./templates";
 import type { Id } from "./types";
+import { latestProjectCheckpoint } from "./checkpoints";
 
 const settingsSchema = z.object({
   repositories: z.array(z.string().trim().min(1).max(1000).refine(p => /^(?:[A-Za-z]:[\\/]|\\\\|\/)/.test(p), "Use absolute repository paths.")).max(8).default([]),
@@ -75,24 +76,20 @@ export function listProjectCheckpoints(args: ProjectArgs): ProjectCheckpointDoc[
 }
 export function resumeProject(args: ProjectArgs) {
   const project = requireProject(args);
-  const checkpoint = listProjectCheckpoints(args)[0];
+  const checkpoint = latestProjectCheckpoint(project);
   const sources = listProjectSources(args);
-  const structuredItems = new Set(data.projectCheckpoints.filter(c=>c.projectId===project._id&&c.workspaceId===args.workspaceId).map(c=>c.itemId));
-  const legacy = data.items.filter(i => i.workspaceId === args.workspaceId && i.parentId === project.itemId && i.type === "Note" && !i.archived && !structuredItems.has(i._id) && (i.tags.includes("checkpoint") || i.title.startsWith("Checkpoint:"))).sort((a, b) => b.createdAt - a.createdAt)[0];
-  const legacyField = (title: string) => legacy?.description?.match(new RegExp(`${title}\\n([\\s\\S]*?)(?=\\n(?:What changed|What failed|Next action)\\n|$)`))?.[1]?.trim();
-  const useLegacy = !!legacy && (!checkpoint || legacy.createdAt > checkpoint.createdAt);
-  const known = !!checkpoint || !!legacy;
   return {
-    project, recordedAt: useLegacy ? legacy!.createdAt : checkpoint?.createdAt ?? null,
+    project, recordedAt: checkpoint?.createdAt ?? null,
     lastGoal: project.goal || "No goal recorded.",
-    lastWork: useLegacy ? legacyField("What changed") || "Read the linked checkpoint note." : checkpoint?.did || "No previous work recorded.",
-    failedAttempts: useLegacy ? legacyField("What failed") || "No failures recorded." : checkpoint?.failed || "No failures recorded.",
-    whyStopped: useLegacy ? "Not recorded in the earlier checkpoint." : checkpoint?.whyStopped || "No reason recorded.",
-    nextAction: useLegacy ? legacyField("Next action") || "Review the checkpoint and record one concrete next action." : checkpoint?.next || "Record the current state and choose one next action.",
-    nextActionKind: known ? "recorded" as const : "suggestion" as const,
+    lastWork: checkpoint?.did || "No previous work recorded.",
+    failedAttempts: checkpoint?.failed || "No failures recorded.",
+    whyStopped: checkpoint?.whyStopped || "No reason recorded.",
+    nextAction: checkpoint?.next || "Record the current state and choose one next action.",
+    nextActionKind: checkpoint?.next ? "recorded" as const : "suggestion" as const,
     branch: checkpoint?.branch || String(sources.find(s => s.metadata.branch)?.metadata.branch ?? "Unknown"),
     commit: checkpoint?.commit || String(sources.find(s => s.metadata.head)?.metadata.head ?? "Unknown"),
-    checkpointId: useLegacy ? legacy!._id : checkpoint?.itemId ?? null,
+    checkpointId: checkpoint?.itemId ?? null,
+    checkpointSource: checkpoint?.sourceIdentity ?? null,
     sources: sources.map(s => ({ ...s, stale: Date.now() - s.capturedAt > 7 * 86400000 })),
     verification: "Captured evidence only. A historical command, build, test, or deployment has not been re-run.",
   };
@@ -150,7 +147,7 @@ export function createProjects(dependencies: { createItem: CreateItem }) {
     const value = z.object({ did:z.string().trim().min(1).max(5000),failed:z.string().trim().max(5000).default(""),whyStopped:z.string().trim().max(2000).default(""),next:z.string().trim().min(1).max(2000),branch:z.string().trim().max(200).default(""),commit:z.string().trim().max(200).default("") }).parse(args);
     for (const key of Object.keys(value) as (keyof typeof value)[]) value[key] = redactProjectSecrets(value[key]);
     const now = Date.now();
-    const itemId = await createItem({ workspaceId:args.workspaceId,title:`Checkpoint: ${project.name}`.slice(0,200),type:"Note",description:`What changed\n${value.did}\n\nWhat failed\n${value.failed || "None recorded"}\n\nWhy I stopped\n${value.whyStopped || "Not recorded"}\n\nNext action\n${value.next}`,areaId:root.areaId,parentId:root._id,tags:["checkpoint"],status:null,priority:null,dueDate:null,amount:null,financialState:null });
+    const itemId = await createItem({ workspaceId:args.workspaceId,title:`Checkpoint: ${project.name}`.slice(0,200),type:"Note",description:`What changed\n${value.did}\n\nWhat failed\n${value.failed || "None recorded"}\n\nWhy I stopped\n${value.whyStopped || "Not recorded"}\n\nNext action\n${value.next}`,areaId:root.areaId,parentId:root._id,tags:["checkpoint"],status:null,priority:null,dueDate:null,amount:null,financialState:null }, { origin: "project", sourceId: project._id });
     const id = nanoid();
     await run('INSERT INTO projectCheckpoints (_id,workspaceId,projectId,itemId,did,failed,whyStopped,next,branch,"commit",createdAt) VALUES (?,?,?,?,?,?,?,?,?,?,?)', [id,args.workspaceId,project._id,itemId,value.did,value.failed,value.whyStopped,value.next,value.branch,value.commit,now]);
     await run("UPDATE projects SET updatedAt=? WHERE _id=?", [now,project._id]);
@@ -211,7 +208,7 @@ export function createProjects(dependencies: { createItem: CreateItem }) {
     for (let index=0;index<report.steps.length;index++) {
       const [existing] = await select<{ itemId:string }>("SELECT itemId FROM projectPlanTasks WHERE projectId=? AND reportKey=? AND stepIndex=?", [project._id,report.reportKey,index]);
       if (existing) { ids.push(existing.itemId); continue; }
-      const id = await createItem({workspaceId:args.workspaceId,title:report.steps[index].slice(0,200),type:"Task",status:"Todo",description:`Revival plan for ${project.name}. ${report.readiness}\n\nEvidence: ${report.sourceIds.join(", ")}\n\n${report.estimate.assumptions}`,parentId:root._id,areaId:root.areaId,tags:["revival"],priority:null,dueDate:null,amount:null,financialState:null});
+      const id = await createItem({workspaceId:args.workspaceId,title:report.steps[index].slice(0,200),type:"Task",status:"Todo",description:`Revival plan for ${project.name}. ${report.readiness}\n\nEvidence: ${report.sourceIds.join(", ")}\n\n${report.estimate.assumptions}`,parentId:root._id,areaId:root.areaId,tags:["revival"],priority:null,dueDate:null,amount:null,financialState:null}, { origin: "project", sourceId: project._id });
       await run("INSERT INTO projectPlanTasks (projectId,reportKey,stepIndex,itemId) VALUES (?,?,?,?)", [project._id,report.reportKey,index,id]); ids.push(id);
     }
     return ids;

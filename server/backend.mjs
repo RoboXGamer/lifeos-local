@@ -16,6 +16,7 @@ import migration5 from '../src-tauri/migrations/0005_automations.sql?raw';
 import migration6 from '../src-tauri/migrations/0006_projects.sql?raw';
 import migration7 from '../src-tauri/migrations/0007_obligations.sql?raw';
 import migration8 from '../src-tauri/migrations/0008_attention.sql?raw';
+import migration9 from '../src-tauri/migrations/0009_feature_integrations.sql?raw';
 import { randomUUID } from 'node:crypto';
 
 let initialized;
@@ -46,7 +47,7 @@ export async function initialize() {
     const directory = process.env.LIFEOS_DATA_DIR ?? join(process.env.APPDATA ?? '', 'dev.a5in.lifeos');
     if (!directory || (!process.env.LIFEOS_DATA_DIR && !process.env.APPDATA)) throw new Error('Cannot locate LifeOS data directory');
     mkdirSync(directory, { recursive: true });
-    const storage = openStorage(join(directory, 'lifeos.db'), [[1, 'create_todos', migration1], [2, 'lifeos_domain', migration2], [3, 'templates', migration3], [4, 'recurrence', migration4], [5, 'automations', migration5], [6, 'projects', migration6], [7, 'obligations', migration7], [8, 'attention', migration8]]);
+    const storage = openStorage(join(directory, 'lifeos.db'), [[1, 'create_todos', migration1], [2, 'lifeos_domain', migration2], [3, 'templates', migration3], [4, 'recurrence', migration4], [5, 'automations', migration5], [6, 'projects', migration6], [7, 'obligations', migration7], [8, 'attention', migration8], [9, 'feature_integrations', migration9]]);
     installStorageAdapter(storage);
     setProjectCollector(collectProject);
     setObligationPdfExtractor(extractObligationPdf);

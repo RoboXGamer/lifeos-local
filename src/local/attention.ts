@@ -3,8 +3,9 @@ import { z } from "zod";
 import { data } from "./store";
 import { run } from "./db";
 import { addDays, dateOnly, requireWorkspace } from "./templates";
-import { formatMoney, obligationDetails } from "./obligations";
+import { formatMoney, obligationDetails, obsoleteObligationItemIds } from "./obligations";
 import type { Id, ItemView } from "./types";
+import { latestProjectCheckpoint } from "./checkpoints";
 
 export interface AttentionFeedbackDoc {
   _id: string; workspaceId: string; suggestionId: string;
@@ -16,6 +17,7 @@ export interface AttentionSuggestion {
   _id: string; kind: "waiting" | "payment" | "decision" | "shipping" | "maintenance";
   title: string; reason: string; detail: string; itemId: string | null;
   href: string; sourceLabel: string; sourceIds: string[]; estimatedMinutes: number | null;
+  sourceIdentity?: string;
 }
 type Candidate = AttentionSuggestion & { score: number; identity: string };
 function localDate(): string {
@@ -35,7 +37,8 @@ export function buildAttention(args: { workspaceId: Id<"workspaces">; availableM
   const capacity = args.availableMinutes === undefined ? null : z.number().int().min(1).max(1440).parse(args.availableMinutes);
   const activeAreaIds = new Set(data.areas.filter(a => a.workspaceId === args.workspaceId && !a.archived).map(a => a._id));
   const visible = data.items.filter(i => i.workspaceId === args.workspaceId && !i.archived && (!i.areaId || activeAreaIds.has(i.areaId)));
-  const open = visible.filter(i => !completed(i));
+  const obsolete = obsoleteObligationItemIds(args.workspaceId);
+  const open = visible.filter(i => !completed(i) && !obsolete.has(i._id));
   const estimates = data.itemEstimates.filter(e => e.workspaceId === args.workspaceId);
   const estimate = (id: string) => estimates.find(e => e.itemId === id)?.minutes ?? null;
   const candidates: Candidate[] = [];
@@ -61,9 +64,9 @@ export function buildAttention(args: { workspaceId: Id<"workspaces">; availableM
   for (const project of data.projects.filter(p => p.workspaceId === args.workspaceId && p.status !== "archived")) {
     const root = visible.find(i => i._id === project.itemId);
     if (!root) continue;
-    const checkpoint = data.projectCheckpoints.filter(c => c.projectId === project._id && c.workspaceId === args.workspaceId).toSorted((a, b) => b.createdAt - a.createdAt)[0];
+    const checkpoint = latestProjectCheckpoint(project);
     if (!checkpoint || (!checkpoint.whyStopped && !checkpoint.failed)) continue;
-    candidates.push({ _id: `decision:${project._id}:${checkpoint._id}`, kind: "decision", title: `Remember why ${project.name} stopped`, reason: project.status === "paused" ? "This project is paused and has a recorded stopping reason or failed attempt." : "A previous checkpoint records a blocker worth checking before repeating the work.", detail: [checkpoint.whyStopped && `Why: ${checkpoint.whyStopped}`, checkpoint.failed && `Failed: ${checkpoint.failed}`, checkpoint.next && `Recorded next action: ${checkpoint.next}`].filter(Boolean).join("\n").slice(0, 1000), itemId: root._id, href: "/app/projects", sourceLabel: `Checkpoint: ${project.name} · ${new Date(checkpoint.createdAt).toLocaleDateString()}`, sourceIds: [project._id, checkpoint._id, checkpoint.itemId], estimatedMinutes: null, identity: `item:${root._id}`, score: project.status === "paused" ? 72 : 45 });
+    candidates.push({ _id: `decision:${project._id}:${checkpoint._id}`, kind: "decision", title: `Remember why ${project.name} stopped`, reason: project.status === "paused" ? "This project is paused and has a recorded stopping reason or failed attempt." : "A previous checkpoint records a blocker worth checking before repeating the work.", detail: [checkpoint.whyStopped && `Why: ${checkpoint.whyStopped}`, checkpoint.failed && `Failed: ${checkpoint.failed}`, checkpoint.next && `Recorded next action: ${checkpoint.next}`].filter(Boolean).join("\n").slice(0, 1000), itemId: root._id, href: "/app/projects", sourceLabel: `Checkpoint: ${project.name} · ${new Date(checkpoint.createdAt).toLocaleDateString()}`, sourceIds: [...new Set([project._id, checkpoint._id, checkpoint.itemId])], sourceIdentity: checkpoint.sourceIdentity, estimatedMinutes: null, identity: `item:${root._id}`, score: project.status === "paused" ? 72 : 45 });
   }
 
   for (const engagement of data.engagements.filter(e => e.workspaceId === args.workspaceId)) {
@@ -72,8 +75,8 @@ export function buildAttention(args: { workspaceId: Id<"workspaces">; availableM
       const linked = data.obligationFollowups.find(f => f.workspaceId === args.workspaceId && f.engagementId === engagement._id && f.exceptionKey === `overdue:${invoice._id}`);
       candidates.push({ _id: `payment:${invoice._id}:${invoice.outstandingMinor}:${invoice.dueDate}`, kind: "payment", title: `Follow up with ${engagement.client}`, reason: `${invoice.reference} has ${formatMoney(invoice.outstandingMinor, invoice.currency)} outstanding and was due ${invoice.dueDate}.`, detail: "The balance uses recorded invoices and allocated receipts/refunds. Unrecorded payments remain unknown.", itemId: linked?.itemId ?? null, href: "/app/obligations", sourceLabel: `Invoice: ${engagement.name} / ${invoice.reference}`, sourceIds: [engagement._id, invoice._id, ...(invoice.documentId ? [invoice.documentId] : [])], estimatedMinutes: linked ? estimate(linked.itemId) : null, identity: linked ? `item:${linked.itemId}` : `invoice:${invoice._id}`, score: 120 });
     }
-    for (const issue of details.exceptions.filter(e => !e.key.startsWith("overdue:"))) {
-      const linked = data.obligationFollowups.find(f => f.workspaceId === args.workspaceId && f.engagementId === engagement._id && f.exceptionKey === issue.key);
+    for (const issue of details.exceptions.filter(e => !e.key.startsWith("overdue:") && (!e.commitmentId || details.commitments.some(c => c._id === e.commitmentId && c.status === "accepted")))) {
+      const linked = data.obligationFollowups.find(f => f.workspaceId === args.workspaceId && f.engagementId === engagement._id && (f.exceptionKey === issue.key || issue.key === `followup-diverged:${f._id}`));
       candidates.push({ _id: `obligation:${engagement._id}:${issue.key}`, kind: "payment", title: issue.title, reason: issue.detail, detail: "Review the linked source evidence before changing accepted terms or recorded money.", itemId: linked?.itemId ?? null, href: "/app/obligations", sourceLabel: `Engagement: ${engagement.client} / ${engagement.name}`, sourceIds: [engagement._id, ...issue.sourceIds], estimatedMinutes: linked ? estimate(linked.itemId) : null, identity: linked ? `item:${linked.itemId}` : `obligation:${engagement._id}:${issue.key}`, score: issue.key.startsWith("conflict:") ? 108 : 80 });
     }
   }

@@ -5,6 +5,7 @@ import { run } from "./db";
 import type { Id, ItemType } from "./types";
 import type { ItemInput } from "./api";
 import { cleanDescription, cleanTagName, cleanAmount } from "./validation";
+import type { ItemProvenance } from "./item-events";
 
 const entrySchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -22,7 +23,7 @@ export interface TemplateDoc {
   definition: TemplateDefinition; createdAt: number; updatedAt: number; builtin?: boolean;
 }
 export type TemplateApply = { workspaceId: Id<"workspaces">; templateId: string; areaId?: Id<"areas"> | null; startDate: string; variables?: Record<string, string> };
-export type CreateItem = (args: ItemInput & { workspaceId: Id<"workspaces"> }) => Promise<Id<"items">>;
+export type CreateItem = (args: ItemInput & { workspaceId: Id<"workspaces"> }, provenance?: ItemProvenance) => Promise<Id<"items">>;
 
 export function dateOnly(value: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value) throw new Error("Choose a valid date (YYYY-MM-DD).");
@@ -92,14 +93,15 @@ export function createTemplates(createItem: CreateItem) {
     await run("INSERT INTO templates (_id, workspaceId, name, version, definition, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(_id) DO UPDATE SET name=excluded.name, version=excluded.version, definition=excluded.definition, updatedAt=excluded.updatedAt", [id, args.workspaceId, definition.name, version, JSON.stringify(definition), now, now]);
     return id;
   };
-  const apply = async (args: TemplateApply) => {
+  const apply = async (args: TemplateApply, provenance?: ItemProvenance) => {
     const { template, items } = previewTemplate(args);
+    const instanceId = nanoid();
     let rootItemId: Id<"items"> | null = null;
     for (const item of items) {
-      const id = await createItem({ ...item, workspaceId: args.workspaceId, parentId: rootItemId });
+      const id = await createItem({ ...item, workspaceId: args.workspaceId, parentId: rootItemId }, provenance ?? { origin: "template", sourceId: instanceId });
       rootItemId ??= id;
     }
-    await run("INSERT INTO templateInstances (_id, workspaceId, templateId, templateVersion, rootItemId, createdAt) VALUES (?, ?, ?, ?, ?, ?)", [nanoid(), args.workspaceId, template._id, template.version, rootItemId, Date.now()]);
+    await run("INSERT INTO templateInstances (_id, workspaceId, templateId, templateVersion, rootItemId, createdAt) VALUES (?, ?, ?, ?, ?, ?)", [instanceId, args.workspaceId, template._id, template.version, rootItemId, Date.now()]);
     return rootItemId!;
   };
   const saveFamily = async (args: { workspaceId: Id<"workspaces">; itemId: Id<"items">; name: string; startDate: string }) => {

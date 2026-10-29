@@ -4,7 +4,7 @@ import type { TemplateDoc } from "./templates";
 import type { ScheduleDoc, OccurrenceDoc } from "./recurrence";
 import type { AutomationDoc, AutomationRunDoc } from "./automations";
 import type { ProjectDoc, ProjectSourceDoc, ProjectCheckpointDoc } from "./projects";
-import type { EngagementDoc, ObligationDocument, CommitmentDoc, InvoiceDoc, PaymentDoc, AllocationDoc } from "./obligations";
+import type { EngagementDoc, ObligationDocument, CommitmentDoc, InvoiceDoc, PaymentDoc, AllocationDoc, ObligationFollowupDoc, ObligationReviewDoc } from "./obligations";
 import type { AttentionFeedbackDoc, ItemEstimateDoc } from "./attention";
 
 // The current Solid RC can leave a trailing sparse slot after keyed deletion.
@@ -27,7 +27,8 @@ import type {
 export interface DbState {
   attentionFeedback: AttentionFeedbackDoc[];
   itemEstimates: ItemEstimateDoc[];
-  obligationFollowups: { _id: string; workspaceId: string; engagementId: string; exceptionKey: string; itemId: string }[];
+  obligationFollowups: ObligationFollowupDoc[];
+  obligationReviews: ObligationReviewDoc[];
   automations: AutomationDoc[];
   automationRuns: AutomationRunDoc[];
   projects: ProjectDoc[];
@@ -51,7 +52,7 @@ export interface DbState {
 }
 
 const emptyState: DbState = {
-  attentionFeedback: [], itemEstimates: [], obligationFollowups: [],
+  attentionFeedback: [], itemEstimates: [], obligationFollowups: [], obligationReviews: [],
   automations: [], automationRuns: [], projects: [], projectSources: [], projectCheckpoints: [],
   engagements: [], obligationDocuments: [], commitments: [], obligationInvoices: [], obligationPayments: [], paymentAllocations: [],
   schedules: [],
@@ -79,6 +80,7 @@ export function applySnapshot(update: { epoch: string; revision: number; state: 
     reconcile(next.attentionFeedback ?? [], "_id")(state.attentionFeedback);
     reconcile(next.itemEstimates ?? [], "_id")(state.itemEstimates);
     reconcile(next.obligationFollowups ?? [], "_id")(state.obligationFollowups);
+    reconcile(next.obligationReviews ?? [], "_id")(state.obligationReviews);
     reconcile(next.automations ?? [], "_id")(state.automations);
     reconcile(next.automationRuns ?? [], "_id")(state.automationRuns);
     reconcile(next.projects ?? [], "_id")(state.projects);
@@ -245,8 +247,9 @@ function attachTags(
 
 /** Reads every table into the reactive store. Personal scale: a full reload is a few ms. */
 export async function reload(): Promise<void> {
-  const [attentionFeedback, itemEstimates, obligationFollowups] = await Promise.all([
+  const [attentionFeedback, itemEstimates, obligationFollowups, obligationReviews] = await Promise.all([
     select<Row>("SELECT * FROM attentionFeedback"), select<Row>("SELECT * FROM itemEstimates"), select<Row>("SELECT * FROM obligationFollowups"),
+    select<Row>("SELECT * FROM obligationReviews ORDER BY createdAt"),
   ]);
   const [automations, automationRuns, projects, projectSources, projectCheckpoints, engagements, obligationDocuments, commitments, obligationInvoices, obligationPayments, paymentAllocations] = await Promise.all([
     select<Row>("SELECT * FROM automations ORDER BY createdAt"), select<Row>("SELECT * FROM automationRuns ORDER BY createdAt DESC LIMIT 1000"),
@@ -275,6 +278,7 @@ export async function reload(): Promise<void> {
     reconcile(attentionFeedback as unknown as AttentionFeedbackDoc[], "_id")(state.attentionFeedback);
     reconcile(itemEstimates as unknown as ItemEstimateDoc[], "_id")(state.itemEstimates);
     reconcile(obligationFollowups as unknown as DbState["obligationFollowups"], "_id")(state.obligationFollowups);
+    reconcile(obligationReviews as unknown as ObligationReviewDoc[], "_id")(state.obligationReviews);
     reconcile(automations.map(row => ({ ...row, enabled: Boolean(row.enabled), definition: JSON.parse(String(row.definition)) })) as unknown as AutomationDoc[], "_id")(state.automations);
     reconcile(automationRuns.map(row => ({ ...row, input: JSON.parse(String(row.input)), result: row.result ? JSON.parse(String(row.result)) : null })) as unknown as AutomationRunDoc[], "_id")(state.automationRuns);
     reconcile(projects.map(row => ({ ...row, settings: JSON.parse(String(row.settings)) })) as unknown as ProjectDoc[], "_id")(state.projects);

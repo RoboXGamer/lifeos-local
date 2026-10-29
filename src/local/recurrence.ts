@@ -185,7 +185,7 @@ export function createRecurrence(createItem: CreateItem) {
       }
       await run("SAVEPOINT recurrence_occurrence");
       try {
-        const id = await createItem({ workspaceId: schedule.workspaceId as Id<"workspaces">, title: source.title, type: source.type ?? "Task", description: source.description ?? null, areaId: source.areaId, parentId: source.parentId, tags: [...source.tags], priority: source.priority ?? null, dueDate: due, amount: source.amount ?? null, status: source.type === "Task" ? "Todo" : null, financialState: source.type === "Income" ? "Expected" : source.type === "Expense" ? "Planned" : null });
+        const id = await createItem({ workspaceId: schedule.workspaceId as Id<"workspaces">, title: source.title, type: source.type ?? "Task", description: source.description ?? null, areaId: source.areaId, parentId: source.parentId, tags: [...source.tags], priority: source.priority ?? null, dueDate: due, amount: source.amount ?? null, status: source.type === "Task" ? "Todo" : null, financialState: source.type === "Income" ? "Expected" : source.type === "Expense" ? "Planned" : null }, { origin: "recurrence", sourceId: `${schedule._id}:${due}` });
         await run("INSERT INTO recurrenceOccurrences (_id, workspaceId, scheduleId, itemId, scheduledDate, state, createdAt) VALUES (?, ?, ?, ?, ?, 'pending', ?)", [nanoid(), schedule.workspaceId, schedule._id, id, due, now]);
         const following = definition.mode === "completion" ? null : nextRecurrenceDate(definition, due);
         await run("UPDATE recurrenceSchedules SET nextDate=?, lastError=NULL, updatedAt=? WHERE _id=?", [following, now, schedule._id]);
