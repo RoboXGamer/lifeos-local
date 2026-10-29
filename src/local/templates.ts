@@ -4,6 +4,7 @@ import { data } from "./store";
 import { run } from "./db";
 import type { Id, ItemType } from "./types";
 import type { ItemInput } from "./api";
+import { cleanDescription, cleanTagName, cleanAmount } from "./validation";
 
 const entrySchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -43,6 +44,8 @@ const starters: Record<string, TemplateDefinition> = {
   client: { name: "Client onboarding", entries: [entry("{{client}} onboarding", "Note"), entry("Confirm {{client}} scope and payment terms", "Task", 0), { ...entry("{{client}} deposit", "Income", 1), amount: "{{amount}}" }, entry("Book {{client}} kickoff", "Task", 2)] },
   delivery: { name: "Client delivery and payment", entries: [entry("{{client}} delivery", "Note"), { ...entry("Deliver {{project}}", "Task", 0), tags: ["delivery", "client"] }, entry("Confirm {{client}} acceptance", "Task", 1), entry("Follow up on {{client}} payment", "Task", 7)] },
   assignment: { name: "College assignment", entries: [entry("{{project}} assignment", "Note"), entry("Read requirements", "Task", 0), entry("Complete first draft", "Task", 2), entry("Review and submit", "Task", 4)] },
+  renewal: { name: "Renewal or subscription", entries: [{ ...entry("{{service}} renewal", "Note", 0), tags: ["renewal"] }, { ...entry("Decide whether to renew {{service}}", "Task", -14), tags: ["maintenance"] }, { ...entry("{{service}} renewal cost", "Expense", 0), amount: "{{amount}}", tags: ["renewal"] }] },
+  backup: { name: "Backup and restore check", entries: [entry("{{project}} backup", "Note"), { ...entry("Create {{project}} backup", "Task", 0), tags: ["backup"] }, { ...entry("Verify a restore of {{project}}", "Task", 0), tags: ["backup"] }] },
 };
 export function listTemplates(args: { workspaceId: string }): TemplateDoc[] {
   return [...Object.entries(starters).map(([key, definition]) => ({ _id: `starter:${key}`, workspaceId: args.workspaceId, name: definition.name, version: 1, definition, createdAt: 0, updatedAt: 0, builtin: true })), ...data.templates.filter(t => t.workspaceId === args.workspaceId)];
@@ -70,7 +73,9 @@ export function previewTemplate(args: TemplateApply): { template: TemplateDoc; i
     const title = substitute(e.title);
     const amount = e.amount === null ? null : typeof e.amount === "number" ? e.amount : Number(substitute(e.amount));
     if (!title.trim() || title.length > 200 || (amount !== null && (!Number.isFinite(amount) || amount < 0))) throw new Error("Template values produce an invalid title or amount.");
-    return { title, type: e.type, description: substitute(e.description) || null, tags: e.tags.map(substitute), dueDate: e.dueOffset === null ? null : addDays(args.startDate, e.dueOffset), areaId: args.areaId ?? null, parentId: null, priority: e.priority, amount, status: e.type === "Task" ? "Todo" as const : null, financialState: e.type === "Income" ? "Expected" as const : e.type === "Expense" ? "Planned" as const : null };
+    const description = cleanDescription(substitute(e.description)) ?? null;
+    const tags = e.tags.map(value => cleanTagName(substitute(value)).name);
+    return { title, type: e.type, description, tags, dueDate: e.dueOffset === null ? null : addDays(args.startDate, e.dueOffset), areaId: args.areaId ?? null, parentId: null, priority: e.priority, amount: cleanAmount(amount) ?? null, status: e.type === "Task" ? "Todo" as const : null, financialState: e.type === "Income" ? "Expected" as const : e.type === "Expense" ? "Planned" as const : null };
   });
   return { template, items };
 }

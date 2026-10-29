@@ -84,7 +84,13 @@ const help = `Usage: lifeos [--json] [--workspace ID] COMMAND
   templates | template-preview TEMPLATE_ID YYYY-MM-DD [VARIABLES_JSON]
   template-apply TEMPLATE_ID YYYY-MM-DD [VARIABLES_JSON]
   template-save ITEM_ID NAME YYYY-MM-DD
-  template-import FILE | template-export TEMPLATE_ID`;
+  template-import FILE | template-export TEMPLATE_ID
+  recurring | automations | projects | obligations | attention
+  repeat ITEM_ID SCHEDULE_JSON | recurrence-control SCHEDULE_ID ACTION [DATE]
+  checkpoint ITEM_ID DID FAILED NEXT
+  project-scan PROJECT_ID | project-resume PROJECT_ID | project-report PROJECT_ID
+  query QUERY_NAME [ARGS_JSON] | run OPERATION_NAME ARGS_JSON
+  Use --json for complete records. Query/run are scoped to the selected workspace.`;
 
 async function main() {
   const args = process.argv.slice(2);
@@ -123,6 +129,22 @@ async function main() {
   else if (action === 'areas') result = await api('query', 'areas', { workspaceId });
   else if (action === 'list') result = await api('query', 'items', { workspaceId });
   else if (action === 'templates') result = await api('query', 'templates', { workspaceId });
+  else if (['recurring', 'automations', 'projects', 'obligations', 'attention'].includes(action) && rest.length === 0) result = await api('query', action === 'recurring' ? 'recurrence' : action, { workspaceId });
+  else if (action === 'repeat' && rest.length === 2) result = (await api('mutation', 'recurrence.save', { workspaceId, itemId: rest[0], definition: JSON.parse(rest[1]) })).result;
+  else if (action === 'recurrence-control' && rest.length >= 2 && rest.length <= 3) result = (await api('mutation', 'recurrence.control', { workspaceId, scheduleId: rest[0], action: rest[1], date: rest[2] })).result;
+  else if (action === 'checkpoint' && rest.length === 4) result = (await api('mutation', 'automations.checkpoint', { workspaceId, itemId: rest[0], did: rest[1], failed: rest[2], next: rest[3] })).result;
+  else if (['project-scan', 'project-resume', 'project-report'].includes(action) && rest.length === 1) result = action === 'project-scan' ? (await api('mutation', 'projects.scan', { workspaceId, projectId: rest[0] })).result : await api('query', action === 'project-resume' ? 'projects.resume' : 'projects.report', { workspaceId, projectId: rest[0] });
+  else if (action === 'query' && rest.length >= 1 && rest.length <= 2) {
+    const payload = JSON.parse(rest[1] ?? '{}');
+    if (!payload || Array.isArray(payload) || typeof payload !== 'object') throw new Error('Arguments must be a JSON object');
+    result = await api('query', rest[0], { ...payload, workspaceId });
+  }
+  else if (action === 'run' && rest.length === 2) {
+    const payload = JSON.parse(rest[1]);
+    if (!payload || Array.isArray(payload) || typeof payload !== 'object') throw new Error('Arguments must be a JSON object');
+    if (!/^(?:templates|recurrence|automations|projects|obligations|attention)\./.test(rest[0])) throw new Error('Use the dedicated CLI commands for core item/workspace operations');
+    result = (await api('mutation', rest[0], { ...payload, workspaceId })).result;
+  }
   else if (['template-preview', 'template-apply'].includes(action) && rest.length >= 2 && rest.length <= 3) {
     const payload = { workspaceId, templateId: rest[0], startDate: rest[1], variables: JSON.parse(rest[2] ?? '{}') };
     result = action === 'template-preview' ? await api('query', 'templates.preview', payload) : (await api('mutation', 'templates.apply', payload)).result;

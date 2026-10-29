@@ -1,0 +1,52 @@
+import { strict as assert } from 'node:assert';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { startupStatus, configureStartup } from '../server/startup.mjs';
+
+const root = mkdtempSync(join(tmpdir(), 'lifeos-startup-test-'));
+const installation = join(root, 'LifeOS test & spaces é');
+mkdirSync(installation);
+const executable = join(installation, 'lifeos.exe');
+writeFileSync(executable, 'test placeholder; never executed');
+const directory = join(root, 'Startup');
+const options = { platform: 'win32', executable, startupDirectory: directory };
+assert.deepEqual(startupStatus(options), { available: true, enabled: false });
+assert.deepEqual(configureStartup(true, options), { available: true, enabled: true });
+const entry = join(directory, 'LifeOS Local Service.vbs');
+const bytes = readFileSync(entry);
+assert.equal(bytes[0], 0xff); assert.equal(bytes[1], 0xfe);
+const body = bytes.subarray(2).toString('utf16le');
+assert(body.startsWith("' LifeOS managed startup (v1)\r\n"));
+assert(body.includes(`shell.Run """${executable}"" serve", 0, False`), 'Executable must be quoted and Run windowstyle must be hidden');
+writeFileSync(join(directory, 'Other app.vbs'), 'leave this alone');
+configureStartup(true, options);
+assert.equal(readdirSync(directory).length, 2, 'Enabling is idempotent without leftover temporary files');
+assert.deepEqual(configureStartup(false, options), { available: true, enabled: false });
+assert(!existsSync(entry));
+assert.equal(readFileSync(join(directory, 'Other app.vbs'), 'utf8'), 'leave this alone');
+configureStartup(false, options);
+
+writeFileSync(entry, 'user-managed script');
+assert.equal(startupStatus(options).available, false);
+assert.throws(() => configureStartup(true, options), /left unchanged/);
+assert.throws(() => configureStartup(false, options), /left unchanged/);
+assert.equal(readFileSync(entry, 'utf8'), 'user-managed script');
+unlinkSync(entry);
+
+configureStartup(true, options);
+const nextExecutable = join(installation, 'lifeos-x86_64-pc-windows-msvc.exe');
+writeFileSync(nextExecutable, 'second build placeholder');
+const nextOptions = { ...options, executable: nextExecutable };
+assert.equal(startupStatus(nextOptions).enabled, false, 'A moved installation is not shown as enabled');
+configureStartup(true, nextOptions);
+assert.equal(startupStatus(nextOptions).enabled, true);
+configureStartup(false, nextOptions);
+
+const runtime = join(installation, 'node.exe'); writeFileSync(runtime, 'development runtime placeholder');
+assert.equal(startupStatus({ ...options, executable: runtime }).available, false);
+assert.throws(() => configureStartup(true, { ...options, executable: runtime }), /compiled/);
+assert.equal(startupStatus({ ...options, platform: 'linux' }).available, false);
+assert.throws(() => configureStartup('true', options), /whether startup/);
+assert.equal(readdirSync(directory).length, 1);
+console.log('Startup registration, hidden quoted launch, idempotency, relocation, disable, unrelated entries and development/platform guards passed (temporary paths only)');

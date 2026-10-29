@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test:productivity": "bun scripts/test_productivity.mjs",
     "tauri": "tauri",
     "build:msi": "tauri build --bundles msi --config src-tauri/tauri.msi.conf.json",
     "update:publish": "node scripts/publish-update.mjs",
@@ -22,6 +23,7 @@
     "@tauri-apps/plugin-updater": "^2.14.0",
     "nanoid": "6.0.2",
     "solid-js": "2.0.0-rc.18",
+    "unpdf": "^1.9.1",
     "zod": "4.6.7"
   },
   "devDependencies": {

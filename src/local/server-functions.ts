@@ -15,3 +15,15 @@ export async function callMutation(name: string, args: unknown): Promise<StateUp
   const backend = await import('../../server/backend.mjs');
   return backend.mutate(name, args);
 }
+
+export async function getStartupStatus(): Promise<import('../../server/startup.mjs').StartupStatus> {
+  'use server';
+  const startup = await import('../../server/startup.mjs');
+  return startup.startupStatus();
+}
+
+export async function configureStartup(enabled: boolean): Promise<import('../../server/startup.mjs').StartupStatus> {
+  'use server';
+  const startup = await import('../../server/startup.mjs');
+  return startup.configureStartup(enabled);
+}

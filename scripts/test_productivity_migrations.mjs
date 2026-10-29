@@ -1,0 +1,43 @@
+import { strict as assert } from 'node:assert';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { openStorage } from '../server/storage.mjs';
+import { readMigrations } from './test-helpers.mjs';
+import { api, ensureProfile } from '../src/local/api.ts';
+import { installStorageAdapter } from '../src/local/db.ts';
+import { data } from '../src/local/store.ts';
+
+const path = join(mkdtempSync(join(tmpdir(), 'lifeos-upgrade-')), 'lifeos.db');
+const migrations = readMigrations();
+const old = openStorage(path, migrations.slice(0, 2));
+old.db.exec("INSERT INTO profiles (_id,_creationTime,authUserId,isAnonymous,role,suspended,createdAt,updatedAt,activeWorkspaceId) VALUES ('p',1,'local',0,'user',0,1,1,'w'); INSERT INTO workspaces VALUES ('w',1,'p','Existing Life',0,1,1); INSERT INTO items (_id,_creationTime,workspaceId,title,areaId,type,status,parentId,archived,createdAt,updatedAt) VALUES ('original',1,'w','Existing important note',NULL,'Note',NULL,NULL,0,1,1)");
+old.db.close();
+const storage = openStorage(path, migrations);
+assert.equal(storage.db.prepare('SELECT title FROM items WHERE _id=?').get('original').title, 'Existing important note');
+assert.equal(storage.db.prepare('SELECT COUNT(*) n FROM _sqlx_migrations').get().n, migrations.length);
+installStorageAdapter(storage); await ensureProfile();
+const workspaceId = data.profile.activeWorkspaceId;
+const root = await api.items.create({ workspaceId, title: 'Linked task', type: 'Task', status: 'Todo', priority: null, dueDate: null, areaId: null, parentId: null, amount: null, financialState: null, description: null, tags: [] });
+await api.templates.apply({ workspaceId, templateId: 'starter:weekly', startDate: '2026-10-29' });
+await api.recurrence.save({ workspaceId, itemId: root, definition: { frequency: 'weekly', interval: 1, weekdays: [], mode: 'calendar', timezone: 'UTC', startDate: '2026-10-29', endDate: null } });
+await api.automations.save({ workspaceId, definition: api.automations.recipes({ workspaceId })[0], enabled: false });
+await api.projects.create({ workspaceId, itemId: root, name: 'Linked project', goal: 'Ship', audience: '', valueStatement: '', status: 'active', settings: { repositories: [], exclusions: [], retentionDays: 365 } });
+await api.attention.estimate({ workspaceId, itemId: root, minutes: 15 });
+const engagementId = await api.obligations.create({ workspaceId, name: 'Linked booking', client: 'Client' });
+await api.obligations.addDocument({ workspaceId, engagementId, label: 'Private terms', kind: 'quotation', body: 'Pay INR 100' });
+await api.workspaces.create({ name: 'Keep this workspace' });
+await api.workspaces.setArchived({ workspaceId, archived: true });
+storage.db.exec("CREATE TRIGGER fail_cleanup BEFORE DELETE ON engagements BEGIN SELECT RAISE(ABORT, 'injected cleanup failure'); END");
+await assert.rejects(api.workspaces.remove({ workspaceId, confirmation: 'Existing Life' }), /injected/);
+assert.equal(storage.db.prepare('SELECT COUNT(*) n FROM projects WHERE workspaceId=?').get(workspaceId).n, 1, 'failed cleanup must restore project metadata');
+assert(storage.db.prepare('SELECT _id FROM items WHERE _id=?').get('original'), 'failed cleanup must preserve original data');
+storage.db.exec('DROP TRIGGER fail_cleanup');
+await api.workspaces.remove({ workspaceId, confirmation: 'Existing Life' });
+for (const table of ['items', 'templates', 'templateInstances', 'recurrenceSchedules', 'recurrenceOccurrences', 'automations', 'automationRuns', 'projects', 'projectSources', 'projectCheckpoints', 'engagements', 'obligationDocuments', 'commitments', 'obligationInvoices', 'obligationPayments', 'paymentAllocations', 'obligationFollowups', 'attentionFeedback', 'itemEstimates']) {
+  assert.equal(storage.db.prepare(`SELECT COUNT(*) n FROM ${table} WHERE workspaceId=?`).get(workspaceId).n, 0, `${table} retained deleted workspace data`);
+}
+assert.equal(data.workspaces.length, 1, 'reactive deletion must leave a dense array');
+assert(data.workspaces.every(Boolean));
+storage.db.close();
+console.log('Original-schema upgrade preserves data; all new workspace records clean up atomically with rollback and dense reactive arrays');

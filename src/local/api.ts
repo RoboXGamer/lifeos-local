@@ -3,6 +3,11 @@ import { hasStorageAdapter, run, select, transaction } from "./db";
 import { data, reload, applySnapshot } from "./store";
 import { searchItems } from "./search";
 import { createTemplates, listTemplates, previewTemplate } from "./templates";
+import { createRecurrence, listSchedules, listOccurrences } from "./recurrence";
+import { createAutomations } from "./automations";
+import { createProjects, listProjects, listProjectSources, listProjectCheckpoints, resumeProject, reportProject } from "./projects";
+import { createObligations, listEngagements, obligationDetails } from "./obligations";
+import { createAttention, buildAttention } from "./attention";
 import type {
   AreaDoc,
   Id,
@@ -818,6 +823,10 @@ const workspacesRemove = async (args: {
   await run("DELETE FROM itemTags WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM templateInstances WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM templates WHERE workspaceId = ?", [workspace._id]);
+  await run("DELETE FROM projectPlanTasks WHERE projectId IN (SELECT _id FROM projects WHERE workspaceId=?)", [workspace._id]);
+  for (const table of ["recurrenceOccurrences", "recurrenceSchedules", "automationRuns", "automations", "projectSources", "projectCheckpoints", "projects", "paymentAllocations", "obligationPayments", "obligationInvoices", "obligationFollowups", "commitments", "obligationDocuments", "engagements", "attentionFeedback", "itemEstimates"]) {
+    await run(`DELETE FROM ${table} WHERE workspaceId=?`, [workspace._id]);
+  }
   await run("DELETE FROM items WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM tags WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM areas WHERE workspaceId = ?", [workspace._id]);
@@ -897,7 +906,14 @@ function transactional<A, R>(name: string, mutation: (args: A) => Promise<R>): (
   return async (args) => {
     if (!remoteMutation) {
       if (!hasStorageAdapter()) throw new Error("The local service is not connected");
-      return transaction(() => mutation(args), reload);
+      return transaction(async () => {
+        const itemId = (args as { itemId?: string })?.itemId;
+        const previous = itemId ? data.items.find(i => i._id === itemId) : undefined;
+        const result = await mutation(args);
+        await recurrence.afterMutation(name, args, result);
+        await automations.afterMutation(name, args, result, previous);
+        return result;
+      }, reload);
     }
     const response = await remoteMutation(name, args);
     applySnapshot(response);
@@ -926,8 +942,56 @@ const profilesCurrent = (): ProfileSummary | undefined => {
 // ---------------------------------------------------------------------- api
 
 const templates = createTemplates(create);
+const recurrence = createRecurrence(create);
+const automations = createAutomations({ createItem: create, applyTemplate: templates.apply, updateItem: update });
+const projects = createProjects({ createItem: create });
+const obligations = createObligations(create);
+const attention = createAttention();
+
+// Service-only entry point: the clock is never accepted from remote clients.
+export function tickRecurring(now = Date.now()) {
+  return transaction(() => recurrence.tick({ now }), reload);
+}
+export function runProductivityTasks(now = Date.now()) {
+  return transaction(async () => {
+    const [before] = await select<{ changes: number }>("SELECT total_changes() AS changes");
+    await recurrence.tick({ now });
+    await automations.tick({ now });
+    const [after] = await select<{ changes: number }>("SELECT total_changes() AS changes");
+    return after.changes - before.changes;
+  }, reload);
+}
 
 export const api = {
+  attention: { build: buildAttention, feedback: transactional('attention.feedback', attention.feedback), estimate: transactional('attention.estimate', attention.estimate) },
+  automations: {
+    list: automations.list, runs: automations.runs, recipes: automations.recipes, preview: automations.preview,
+    save: transactional('automations.save', automations.save),
+    setEnabled: transactional('automations.setEnabled', automations.setEnabled),
+    remove: transactional('automations.remove', automations.remove),
+    retry: transactional('automations.retry', automations.retry),
+    checkpoint: transactional('automations.checkpoint', automations.checkpoint),
+  },
+  projects: {
+    list: listProjects, sources: listProjectSources, checkpoints: listProjectCheckpoints, resume: resumeProject, report: reportProject,
+    create: transactional('projects.create', projects.create), update: transactional('projects.update', projects.update),
+    checkpoint: transactional('projects.checkpoint', projects.checkpoint), addSource: transactional('projects.addSource', projects.addSource),
+    scan: transactional('projects.scan', projects.scan), acceptPlan: transactional('projects.acceptPlan', projects.acceptPlan),
+    removeSource: transactional('projects.removeSource', projects.removeSource), remove: transactional('projects.remove', projects.remove),
+  },
+  obligations: {
+    list: listEngagements, details: obligationDetails,
+    create: transactional('obligations.create', obligations.create), addDocument: transactional('obligations.addDocument', obligations.addDocument),
+    extract: transactional('obligations.extract', obligations.extract), review: transactional('obligations.review', obligations.review),
+    addInvoice: transactional('obligations.addInvoice', obligations.addInvoice), recordPayment: transactional('obligations.recordPayment', obligations.recordPayment),
+    allocate: transactional('obligations.allocate', obligations.allocate), createFollowup: transactional('obligations.createFollowup', obligations.createFollowup),
+  },
+  recurrence: {
+    list: listSchedules,
+    history: listOccurrences,
+    save: transactional('recurrence.save', recurrence.save),
+    control: transactional('recurrence.control', recurrence.control),
+  },
   templates: {
     list: listTemplates,
     preview: previewTemplate,
