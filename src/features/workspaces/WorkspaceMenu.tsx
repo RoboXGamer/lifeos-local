@@ -3,6 +3,7 @@ import { Icon } from "../../Icon";
 import Avatar from "../../Avatar";
 import { useWorkspaces } from "./context";
 import "./WorkspaceMenu.css";
+import { StartupControl } from "./StartupControl";
 
 export function WorkspaceMenu() {
   const model = useWorkspaces();
@@ -126,6 +127,7 @@ export function WorkspaceMenu() {
             </form>
           </Show>
 
+          <StartupControl />
           <footer>
             <button
               type="button"

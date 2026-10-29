@@ -28,7 +28,8 @@ async function evaluate(url, expression) {
 }
 try {
   let page;
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < Number(process.env.LIFEOS_DESKTOP_WAIT_SECONDS ?? 180); i++) {
+    if (child.exitCode !== null) throw new Error(`Desktop process exited with code ${child.exitCode}`);
     await new Promise(resolve => setTimeout(resolve, 1000));
     page = await target();
     if (page && await evaluate(page.webSocketDebuggerUrl, "document.querySelectorAll('a.nav-button').length").catch(() => 0) >= 5) break;
@@ -59,7 +60,16 @@ try {
   }
   if (!found) console.log('Desktop after capture:', (await evaluate(page.webSocketDebuggerUrl, 'document.body.innerText')).slice(0, 500));
   assert(found, 'Desktop capture did not appear in the CLI');
-  console.log('Desktop shell, CLI-to-UI live update and UI-to-CLI capture passed');
+  await evaluate(page.webSocketDebuggerUrl, "window.__lifeosSmokeErrors = []; window.addEventListener('error', event => window.__lifeosSmokeErrors.push(event.message)); window.addEventListener('unhandledrejection', event => window.__lifeosSmokeErrors.push(String(event.reason)))");
+  for (const [route, heading] of [['templates', 'Templates'], ['recurring', 'Recurring'], ['automations', 'Automations'], ['projects', 'Projects'], ['obligations', 'Promise to payment'], ['today', 'Today']]) {
+    await evaluate(page.webSocketDebuggerUrl, `document.querySelector('a.nav-button[href="/app/${route}"]').click()`);
+    let loaded = false;
+    for (let i = 0; i < 30; i++) { if (await evaluate(page.webSocketDebuggerUrl, `document.querySelector('main h2')?.textContent === ${JSON.stringify(heading)}`)) { loaded = true; break; } await new Promise(resolve => setTimeout(resolve, 100)); }
+    assert(loaded, `${route} page did not render`);
+    assert.equal((await evaluate(page.webSocketDebuggerUrl, 'window.__lifeosSmokeErrors')).length, 0, `${route} raised a browser error`);
+  }
+  assert((await evaluate(page.webSocketDebuggerUrl, 'document.body.innerText')).includes('Worth your attention'));
+  console.log('Desktop shell, both CLI/UI capture directions, six productivity pages and Today rendering passed');
 } finally {
   try { execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' }); } catch {}
   if (existsSync(infoPath)) { try { const info = JSON.parse(readFileSync(infoPath, 'utf8')); process.kill(info.pid); } catch {} }

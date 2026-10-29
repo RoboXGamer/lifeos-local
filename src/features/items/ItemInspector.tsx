@@ -23,6 +23,8 @@ import { useItemPanelRoute } from "./routing";
 import { itemIcon, itemStatusLabel, itemTypes, priorityLabel } from "./types";
 import "./ItemInspector.css";
 import { TemplateSaveControl } from "./TemplateSaveControl";
+import { RecurrenceControl } from "./RecurrenceControl";
+import { CheckpointControl } from "./CheckpointControl";
 
 const statuses: ItemStatus[] = ["Todo", "In Progress", "Done"];
 
@@ -660,6 +662,8 @@ function ItemViewPanel(props: {
         </Show>
 
         <Show when={!item().archived && !item().parentId}><TemplateSaveControl item={item()} /></Show>
+        <Show when={!item().archived && ["Task", "Income", "Expense"].includes(item().type ?? "")}><RecurrenceControl item={item()} /></Show>
+        <Show when={!item().archived && !item().parentId}><CheckpointControl item={item()} /></Show>
         <footer class="item-view-actions">
           <Show when={!item().archived}>
             <button type="button" onClick={props.onEdit}>

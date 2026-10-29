@@ -1,0 +1,10 @@
+.obligation-sections { display: grid; gap: 18px; min-width: 0; }
+.obligations-page form { display: grid; gap: 12px; }
+.obligation-balances { display: flex; flex-wrap: wrap; gap: 24px; }
+.obligation-balances > div { display: grid; gap: 4px; }
+.obligation-balances strong { font-size: 1.5rem; }
+.obligation-record { display: grid; gap: 10px; padding: 14px 0; border-top: 1px solid var(--color-border); min-width: 0; }
+.obligation-record blockquote { white-space: pre-wrap; padding: 10px 14px; border-left: 3px solid var(--color-purple); background: hsl(248 75% 98%); }
+.obligation-record summary { cursor: pointer; padding: 6px 0; }
+.obligation-record pre { white-space: pre-wrap; overflow-wrap: anywhere; font: .8rem/1.65 ui-monospace, monospace; padding: 12px; background: hsl(225 25% 97%); max-height: 350px; overflow: auto; }
+.obligation-record a { font-size: .8rem; }

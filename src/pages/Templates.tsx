@@ -44,7 +44,8 @@ export default function Templates() {
         <For each={templates()} keyed={t => t._id}>{t => <button class={{ selected: selected()._id === t()._id }} onClick={() => { setSelectedId(t()._id); setEditor(""); setVariables({}); setMessage(""); }}><strong>{t().name}</strong><small>{t().definition.entries.length} items · {t().builtin ? "Starter" : `Version ${t().version}`}</small></button>}</For>
         <label class="productivity-import">Import template<input type="file" accept="application/json,.json" disabled={busy()} onChange={event => {
           const file = event.currentTarget.files?.[0]; if (!file) return;
-          void perform(async () => { if (file.size > 500000) throw new Error("Template files must be under 500 KB."); const definition = templateSchema.parse(JSON.parse(await file.text())); setSelectedId(await api.templates.save({ workspaceId: workspaceId(), definition })); }, "Template imported.");
+          const destination = workspaceId();
+          void perform(async () => { if (file.size > 500000) throw new Error("Template files must be under 500 KB."); const definition = templateSchema.parse(JSON.parse(await file.text())); const id = await api.templates.save({ workspaceId: destination, definition }); if (workspaceId() === destination) setSelectedId(id); }, "Template imported.");
           event.currentTarget.value = "";
         }} /></label>
       </aside>

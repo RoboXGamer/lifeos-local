@@ -9,6 +9,7 @@ import { useItems, type ItemView } from "../features/items/context";
 import { useItemPanelRoute } from "../features/items/routing";
 import { useWorkspaces } from "../features/workspaces/context";
 import "./Retrieval.css";
+import { TodayAttention } from "../features/attention/TodayAttention";
 
 export default function Today() {
   const workspaces = useWorkspaces();
@@ -54,6 +55,7 @@ export default function Today() {
           Add for today
         </button>
       </header>
+      <TodayAttention />
       <Show
         when={rows.length > 0}
         fallback={

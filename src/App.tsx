@@ -18,6 +18,10 @@ const navItems = [
   { id: "upcoming", label: "Upcoming", icon: "calendar" },
   { id: "tags", label: "Tags", icon: "tag" },
   { id: "templates", label: "Templates", icon: "description" },
+  { id: "recurring", label: "Recurring", icon: "clock" },
+  { id: "projects", label: "Projects", icon: "folder" },
+  { id: "automations", label: "Automations", icon: "sparkle" },
+  { id: "obligations", label: "Promise to payment", icon: "currency" },
   { id: "archive", label: "Archive", icon: "archive" },
 ] as const;
 
