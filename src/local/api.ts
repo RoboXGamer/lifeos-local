@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { run, select, transaction } from "./db";
 import { data, reload } from "./store";
+import { searchItems } from "./search";
 import type {
   AreaDoc,
   Id,
@@ -133,19 +134,10 @@ const search = (args: {
   workspaceId: Id<"workspaces">;
   searchTerm: string;
   limit?: number;
+  type?: ItemType;
 }): ItemView[] => {
-  const term = args.searchTerm.trim().toLowerCase();
-  if (!term) return [];
   const limit = Math.max(1, Math.min(Math.floor(args.limit ?? 40), 60));
-  const areas = visibleAreaIds(args.workspaceId);
-  return itemsOf(args.workspaceId)
-    .filter(
-      (item) =>
-        !item.archived &&
-        item.title.toLowerCase().includes(term) &&
-        (item.areaId === null || areas.has(item.areaId)),
-    )
-    .slice(0, limit);
+  return searchItems(data.items, data.areas, args.workspaceId, args.searchTerm, limit, args.type);
 };
 
 const get = (args: { itemId: Id<"items"> }): ItemView | undefined =>

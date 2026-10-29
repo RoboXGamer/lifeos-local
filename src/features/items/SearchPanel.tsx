@@ -1,5 +1,7 @@
 import { createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import { api } from "../../local/api";
+import { useWorkspaces } from "../workspaces/context";
 import { Icon } from "../../Icon";
 import { useItems } from "./context";
 import { useItemPanelRoute } from "./routing";
@@ -9,22 +11,13 @@ import "../../pages/Organization.css";
 
 export function SearchPanel(props: { onClose: () => void }) {
   const items = useItems();
+  const workspaces = useWorkspaces();
   const panel = useItemPanelRoute();
   const navigate = useNavigate();
   const [input, setInput] = createSignal("");
   const results = () => {
-    const query = input().trim().toLowerCase();
-    if (!query) return [];
-    return items.activeItems
-      .filter((item) => {
-        const area =
-          items.areas().find((entry) => entry._id === item.areaId)?.name ??
-          "Inbox";
-        return `${item.title} ${item.description ?? ""} ${item.type ?? ""} ${item.tags.join(" ")} ${area}`
-          .toLowerCase()
-          .includes(query);
-      })
-      .slice(0, 12);
+    const workspaceId = workspaces.state.activeWorkspaceId;
+    return workspaceId ? api.items.search({ workspaceId, searchTerm: input(), limit: 12 }) : [];
   };
   const open = (itemId: string) => {
     props.onClose();
