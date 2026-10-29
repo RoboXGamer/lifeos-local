@@ -6,6 +6,20 @@ let connection: Promise<Database> | null = null;
 let transactionId: string | null = null;
 let queue: Promise<unknown> = Promise.resolve();
 
+/** The server installs its own SQLite adapter; desktop-only code keeps using Tauri. */
+export interface StorageAdapter {
+  select<Row>(sql: string, params: unknown[]): Promise<Row[]>;
+  run(sql: string, params: unknown[]): Promise<void>;
+  transaction<T>(work: () => Promise<T>, refresh: () => Promise<void>): Promise<T>;
+}
+
+let storageAdapter: StorageAdapter | undefined;
+
+export function installStorageAdapter(adapter: StorageAdapter): void {
+  if (storageAdapter) throw new Error("Storage adapter is already installed");
+  storageAdapter = adapter;
+}
+
 async function refreshSnapshot(refresh: () => Promise<void>): Promise<void> {
   const id = nanoid();
   await invoke("begin", { id });
@@ -31,6 +45,7 @@ export async function select<Row>(
   sql: string,
   params: unknown[] = [],
 ): Promise<Row[]> {
+  if (storageAdapter) return storageAdapter.select<Row>(sql, params);
   if (transactionId) {
     return invoke<Row[]>("select", { id: transactionId, sql, params });
   }
@@ -38,6 +53,7 @@ export async function select<Row>(
 }
 
 export async function run(sql: string, params: unknown[] = []): Promise<void> {
+  if (storageAdapter) return storageAdapter.run(sql, params);
   if (transactionId) {
     return invoke("execute", { id: transactionId, sql, params });
   }
@@ -46,6 +62,7 @@ export async function run(sql: string, params: unknown[] = []): Promise<void> {
 
 /** Serialize mutation callbacks and use one Rust-held connection per mutation. */
 export function transaction<T>(work: () => Promise<T>, refresh: () => Promise<void>): Promise<T> {
+  if (storageAdapter) return storageAdapter.transaction(work, refresh);
   const task = queue.then(async () => {
     await db(); // Applies migrations before the Rust connection opens the file.
     const id = nanoid();

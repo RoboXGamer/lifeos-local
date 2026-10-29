@@ -31,6 +31,23 @@ const emptyState: DbState = {
 
 export const [data, setData] = createStore<DbState>(emptyState);
 
+let currentEpoch: string | undefined;
+let currentRevision = -1;
+export function applySnapshot(update: { epoch: string; revision: number; state: DbState }): void {
+  if (currentEpoch === update.epoch && update.revision < currentRevision) return;
+  currentEpoch = update.epoch;
+  currentRevision = update.revision;
+  const next = update.state;
+  setData((state) => {
+    state.profile = next.profile;
+    reconcile(next.workspaces, "_id")(state.workspaces);
+    reconcile(next.areas, "_id")(state.areas);
+    reconcile(next.items, "_id")(state.items);
+    reconcile(next.tags, "_id")(state.tags);
+    reconcile(next.itemTags, "_id")(state.itemTags);
+  });
+}
+
 type Row = Record<string, unknown>;
 
 function str(value: unknown): string {

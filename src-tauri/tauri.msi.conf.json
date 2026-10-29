@@ -1,6 +1,8 @@
 {
   "bundle": {
     "createUpdaterArtifacts": false,
+    "externalBin": ["binaries/lifeos"],
+    "resources": { "../dist/client/": "lifeos-client/" },
     "windows": {
       "webviewInstallMode": { "type": "downloadBootstrapper" }
     }

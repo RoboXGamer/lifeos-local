@@ -4,7 +4,7 @@ import solid from '@solidjs/vite-plugin'
 export default defineConfig({
   // Classic SPA: index.html + src/index.tsx are the entry, output goes to dist/.
   // (The old turnkey `start: true` mode emitted dist/client instead.)
-  plugins: [solid({ diagnostics: true })],
+  plugins: [solid({ diagnostics: true, start: { app: './src/Root.tsx', node: true, middleware: './src/server/middleware.ts' }, serverFunctions: true })],
   // Tauri expects a fixed port and shows Rust errors itself.
   clearScreen: false,
   server: {
