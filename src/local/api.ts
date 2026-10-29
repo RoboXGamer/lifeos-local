@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { run, select, transaction } from "./db";
-import { data, reload } from "./store";
+import { data, reload, applySnapshot } from "./store";
 import { searchItems } from "./search";
 import type {
   AreaDoc,
@@ -885,8 +885,16 @@ async function bootstrapProfile(): Promise<void> {
 
 }
 
-function transactional<A, R>(mutation: (args: A) => Promise<R>): (args: A) => Promise<R> {
-  return (args) => transaction(() => mutation(args), reload);
+let remoteMutation: ((name: string, args: unknown) => Promise<{ result: unknown; state: import('./store').DbState; epoch: string; revision: number }>) | undefined;
+export function enableRemoteMutations(executor: typeof remoteMutation): void { remoteMutation = executor; }
+
+function transactional<A, R>(name: string, mutation: (args: A) => Promise<R>): (args: A) => Promise<R> {
+  return async (args) => {
+    if (!remoteMutation) return transaction(() => mutation(args), reload);
+    const response = await remoteMutation(name, args);
+    applySnapshot(response);
+    return response.result as R;
+  };
 }
 
 export function ensureProfile(): Promise<void> {
@@ -919,38 +927,38 @@ export const api = {
     search,
     get,
     removalImpact,
-    quickCapture: transactional(quickCapture),
-    create: transactional(create),
-    update: transactional(update),
-    setTaskDone: transactional(setTaskDone),
-    setArchived: transactional(setArchived),
-    remove: transactional(remove),
+    quickCapture: transactional('items.quickCapture', quickCapture),
+    create: transactional('items.create', create),
+    update: transactional('items.update', update),
+    setTaskDone: transactional('items.setTaskDone', setTaskDone),
+    setArchived: transactional('items.setArchived', setArchived),
+    remove: transactional('items.remove', remove),
   },
   areas: {
     list: areasList,
     listArchived: areasListArchived,
     get: areasGet,
     removalImpact: areasRemovalImpact,
-    create: transactional(areasCreate),
-    update: transactional(areasUpdate),
-    setArchived: transactional(areasSetArchived),
-    remove: transactional(areasRemove),
+    create: transactional('areas.create', areasCreate),
+    update: transactional('areas.update', areasUpdate),
+    setArchived: transactional('areas.setArchived', areasSetArchived),
+    remove: transactional('areas.remove', areasRemove),
   },
   tags: {
     list: tagsList,
     listWithCounts: tagsListWithCounts,
-    rename: transactional(tagsRename),
-    remove: transactional(tagsRemove),
+    rename: transactional('tags.rename', tagsRename),
+    remove: transactional('tags.remove', tagsRemove),
   },
   workspaces: {
     list: workspacesList,
     listArchived: workspacesListArchived,
     removalImpact: workspacesRemovalImpact,
-    create: transactional(workspacesCreate),
-    rename: transactional(workspacesRename),
-    select: transactional(workspacesSelect),
-    setArchived: transactional(workspacesSetArchived),
-    remove: transactional(workspacesRemove),
+    create: transactional('workspaces.create', workspacesCreate),
+    rename: transactional('workspaces.rename', workspacesRename),
+    select: transactional('workspaces.select', workspacesSelect),
+    setArchived: transactional('workspaces.setArchived', workspacesSetArchived),
+    remove: transactional('workspaces.remove', workspacesRemove),
   },
   profiles: {
     bootstrap: ensureProfile,

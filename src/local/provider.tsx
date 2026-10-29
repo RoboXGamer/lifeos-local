@@ -1,7 +1,7 @@
 import { Show, createSignal, onCleanup, onSettled, type ParentProps } from "solid-js";
-import { ensureProfile } from "./api";
-import { transaction } from "./db";
-import { reload } from "./store";
+import { enableRemoteMutations } from "./api";
+import { applySnapshot } from "./store";
+import { callMutation, watchState } from "./server-functions";
 import { toError } from "./query";
 
 /**
@@ -12,13 +12,24 @@ export function LocalProvider(props: ParentProps) {
   const [ready, setReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
+  let iterator: AsyncIterator<import('./server-functions').StateUpdate> | undefined;
+  let generation = 0;
   const boot = async () => {
+    const current = ++generation;
     try {
-      await ensureProfile();
-      setError(null);
-      setReady(true);
+      iterator = watchState()[Symbol.asyncIterator]();
+      while (current === generation) {
+        const next = await iterator.next();
+        if (next.done || current !== generation) break;
+        applySnapshot(next.value);
+        enableRemoteMutations(callMutation);
+        setError(null);
+        setReady(true);
+      }
     } catch (reason) {
+      if (current !== generation) return;
       setError(toError(reason).message);
+      setReady(false);
     }
   };
 
@@ -26,14 +37,11 @@ export function LocalProvider(props: ParentProps) {
     void boot();
   });
 
-  // Another running instance may have committed while this window was inactive.
-  const refreshOnFocus = () => {
-    if (ready()) void transaction(async () => {}, reload).catch(console.error);
-  };
-  window.addEventListener("focus", refreshOnFocus);
-  onCleanup(() => window.removeEventListener("focus", refreshOnFocus));
+  onCleanup(() => { generation++; void iterator?.return?.(); });
 
   const retry = () => {
+    generation++;
+    void iterator?.return?.();
     setError(null);
     setReady(false);
     void boot();

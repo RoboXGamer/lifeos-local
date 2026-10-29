@@ -62,7 +62,7 @@ function build() {
   console.log(`building LifeOS ${version} (nsis + updater artifacts)…`);
   try {
     fs.writeFileSync(confPath, `${JSON.stringify(conf, null, 2)}\n`);
-    const result = spawnSync("pnpm tauri build --bundles nsis", {
+    const result = spawnSync("pnpm tauri build --bundles nsis --config src-tauri/tauri.service.conf.json", {
       cwd: root,
       shell: true,
       stdio: "inherit",
