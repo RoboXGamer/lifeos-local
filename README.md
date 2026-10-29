@@ -2,7 +2,7 @@
 
 LifeOS is a personal, local-first desktop app for capturing what is on your mind and organizing the parts of life that matter to you. The desktop app and CLI use the same local service and SQLite database; an account or cloud connection is not required.
 
-This branch contains the newer local-service and CLI work. It is under active development: the service, CLI, and installer have had focused local testing, but the complete desktop-to-CLI flow, upgrades, and installation on a second machine still need verification. [`main`](../../tree/main) has the earlier desktop-only version.
+This branch contains the newer local-service, CLI, and productivity work. Isolated checks verify the domain logic, original-schema migration, compiled CLI/service workflows, and both desktop/CLI capture directions. Packaged upgrades and installation on a second machine still need verification. [`main`](../../tree/main) has the earlier desktop-only version.
 
 ## What is here
 
@@ -12,6 +12,11 @@ This branch contains the newer local-service and CLI work. It is under active de
 - Archive and restore, plus confirmation before permanent deletion.
 - A local CLI and desktop app backed by the same SQLite data and mutation logic.
 - A Windows MSI build and a local signed-update workflow.
+- Reusable templates, recurring tasks/financial reminders, and durable automation rules.
+- Project checkpoints, source snapshots, resume briefs, and read-only repository revival reviews.
+- Reviewed client obligations, conflicting terms, invoices, partial payments/refunds, and evidence-based Today suggestions.
+
+See [Productivity and local intelligence](docs/PRODUCTIVITY.md) for the new flows, CLI commands, and first-version limits.
 
 ## How it fits together
 
@@ -80,13 +85,15 @@ The MSI is written under `src-tauri/target/release/bundle/msi/`. The build compi
 
 ```powershell
 pnpm typecheck
+pnpm test:productivity
 node scripts/build-service.mjs
 bun scripts/test_server_storage.mjs
 node scripts/test_search.mjs
 node scripts/test_live_server.mjs
+node scripts/test_productivity_service.mjs
 ```
 
-The storage and live-service checks use isolated test data. `scripts/test_desktop_cli.mjs` exercises the desktop and CLI using a separate test app identifier; it requires Windows, WebView2, and the compiled service. A prior run confirmed CLI-to-desktop updates, but desktop-to-CLI capture and packaged installation still need a fresh end-to-end check.
+The storage and live-service checks use isolated test data. `scripts/test_desktop_cli.mjs` exercises both desktop/CLI capture directions and navigation through the six productivity pages using a separate test app identifier; it requires Windows, WebView2, and the compiled service. These development checks pass; packaged installation and upgrade behavior still need a fresh end-to-end check.
 
 ## Local updates
 
