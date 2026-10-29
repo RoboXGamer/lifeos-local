@@ -1,6 +1,6 @@
 # LifeOS milestones
 
-These milestones are ordered: make local writes reliable, make search match its promise, then package the app for testing on other Windows machines.
+These milestones are ordered: make local writes reliable, make search match its promise, package the app for testing, then add a CLI that shares the same local LifeOS as the desktop app.
 
 ## 1. Harden multi-step writes
 
@@ -48,6 +48,8 @@ The installed `tauri-plugin-sql` 2.6.0 uses a SQLx connection pool and executes 
 
 **Current finding:** This Windows machine has Rust, Cargo, pnpm, and the existing Tauri updater key. The current release script builds NSIS only; no MSI or cached WiX toolset was found in the inspected bundle/tool directories. A successful MSI build, its prerequisites, and testing on another machine remain to be verified. Availability of a separate Windows code-signing certificate has not been established.
 
+**Update:** An unsigned 0.1.0 x64 MSI was built on `feat/windows-msi`, and the user reports that they installed it and it works. Testing on a second machine and upgrade/uninstall behavior remain unverified. The MSI was built from its independent feature branch, before the transaction and search branches are merged into `dev`.
+
 ### Work
 
 - [ ] Build an MSI on Windows using Tauri's WiX bundler, document the exact command, prerequisites, artifact location, app version, and target architecture. See [Tauri's Windows installer guide](https://v2.tauri.app/distribute/windows-installer/).
@@ -61,3 +63,25 @@ The installed `tauri-plugin-sql` 2.6.0 uses a SQLx connection pool and executes 
 - [ ] The MSI installs and launches on a second Windows machine without the development toolchain.
 - [ ] A tester creates data, exits and reopens the installed app, and confirms persistence; basic capture, search, and archive/restore work.
 - [ ] Reinstall or upgrade and uninstall behavior are tested and documented, including whether existing data is preserved. Any untested behavior is explicitly noted.
+
+## 4. Add a CLI alongside the desktop app
+
+**Goal:** One local LifeOS installation, usable from either the desktop app or a terminal. Both surfaces operate on the same profile, workspaces, and SQLite database, and the CLI works even when the desktop window is closed. Keep the app offline by default.
+
+**Architecture direction:** Take inspiration from [OpenCode's client/server model](https://dev.opencode.ai/docs/server/): separate the local domain backend from its user interfaces, so desktop and CLI are clients of the same capabilities. OpenCode runs a headless server and clients connect to it; its [CLI also supports attaching](https://dev.opencode.ai/docs/cli/) to a running server. For LifeOS, evaluate a locally managed backend process and a shared-core alternative before committing to a transport. A server is a local process, not a cloud dependency; do not assume one permanent daemon or an HTTP port is necessary without evaluating lifecycle and security.
+
+### Work
+
+- [ ] Audit the domain logic currently in `src/local/api.ts`, validation, SQLite migrations, and the transaction feature branch. Design a shared backend that owns domain validation, transactions, database location, schema versioning, and error semantics; neither surface should duplicate mutation rules or bypass the transaction boundary.
+- [ ] Choose and document the process model, client protocol, startup/discovery, shutdown and crash recovery. Define how either surface starts or finds the backend, what happens if the backend is unavailable, and how concurrent startup and incompatible client/backend versions are handled. If using a local server, bind locally by default, authenticate local clients, and avoid unintended network exposure.
+- [ ] Make both surfaces use `%APPDATA%\dev.a5in.lifeos\lifeos.db` on Windows and the same migration history. Preserve existing user data and test first-run setup, upgrades, and running the CLI with an existing desktop installation.
+- [ ] Define how committed changes reach the desktop's reactive store while it is open, including CLI changes from another process and reconnection after a backend restart. Concurrent CLI and desktop mutations must preserve the transactional guarantees from milestone 1.
+- [ ] Design a small command-line interface for core workflows: discover workspaces and areas, capture and list items, search, complete tasks, and archive/restore. Specify help, errors and exit codes, workspace selection, human-readable output, and machine-readable JSON; confirm command names before implementation.
+- [ ] Package the CLI with the Windows installation and document how to invoke it, including PATH behavior, upgrades and uninstall. Avoid replacing or deleting the user's existing database. Keep the desktop UI and existing functionality intact.
+
+### Done when
+
+- [ ] The CLI runs without an open desktop window and creates or updates an item that appears in the app; changes in the app are visible to the CLI against the same installation and database.
+- [ ] With both surfaces open, changes propagate without a manual restart and simultaneous writes either commit fully or fail without partial data loss.
+- [ ] Tests cover shared validation and search behavior, migration compatibility, failure and recovery, concurrent access, CLI exit codes and JSON output.
+- [ ] An installed build is tested end to end: install or upgrade, run both surfaces, restart, and verify persisted data. Setup, CLI usage, backend lifecycle, and any remaining limitations are documented.
