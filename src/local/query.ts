@@ -38,7 +38,7 @@ export interface LocalMutation<Args extends unknown[], R> {
 
 /**
  * Mutation helper: tracks in-flight calls and normalises thrown values.
- * Every `api.*` mutation writes SQLite and then reloads the store.
+ * Mutations run on the service and update the local snapshot on completion.
  */
 export function createMutation<Args extends unknown[], R>(
   run: (...args: Args) => Promise<R>,

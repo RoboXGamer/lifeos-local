@@ -6,6 +6,8 @@ Run LifeOS as an offline-first local service with desktop and command-line clien
 
 ## Existing app and Solid 2
 
+This section records the design starting point. The current `dev` implementation uses Solid Start server functions and the local service; the earlier Tauri SQL transaction path has been removed. The service retains the existing SQLx migration table and checksums for database compatibility.
+
 The app currently ships as a Vite SPA inside Tauri, with domain operations in `src/local/api.ts` and SQLite accessed through the Tauri SQL plugin. The transaction wrapper holds a Rust SQLite connection while TypeScript mutation code runs. This works in a WebView, but it cannot be called directly by a standalone server or CLI. Sharing only the SQLite file would duplicate validation and mutation behavior.
 
 The installed Solid 2 RC18 includes `live()` server functions and async iterable subscriptions. The installed Vite plugin can compile server functions and exposes `virtual:solid-server-function-handler` for a production host. Enabling them requires a server build and request handler; the existing SPA configuration does not provide either. `live()` supplies a long-lived read with reconnect behavior, not database transactions, process management, local authentication or automatic change detection.

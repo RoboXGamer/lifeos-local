@@ -1,5 +1,7 @@
 # Port plan — web LifeOS → local-first Tauri app
 
+> Historical port record: the `dev` branch now uses the local service described in [CLI architecture](CLI-ARCHITECTURE.md). References below to Tauri SQL and its transaction path describe the earlier implementation.
+
 Source of truth for the product/UX: `C:\Users\A5IN\Coding\projects\lifeos` (Solid 2 beta.29 + Convex + Better Auth).
 Target: this repo (Tauri v2 + Solid 2 rc.18 + SQLite, no server).
 

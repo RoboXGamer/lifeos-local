@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { run, select, transaction } from "./db";
+import { hasStorageAdapter, run, select, transaction } from "./db";
 import { data, reload, applySnapshot } from "./store";
 import { searchItems } from "./search";
 import type {
@@ -890,7 +890,10 @@ export function enableRemoteMutations(executor: typeof remoteMutation): void { r
 
 function transactional<A, R>(name: string, mutation: (args: A) => Promise<R>): (args: A) => Promise<R> {
   return async (args) => {
-    if (!remoteMutation) return transaction(() => mutation(args), reload);
+    if (!remoteMutation) {
+      if (!hasStorageAdapter()) throw new Error("The local service is not connected");
+      return transaction(() => mutation(args), reload);
+    }
     const response = await remoteMutation(name, args);
     applySnapshot(response);
     return response.result as R;

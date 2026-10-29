@@ -6,8 +6,6 @@
   "remote": { "urls": ["http://127.0.0.1:*/*"] },
   "permissions": [
     "core:default",
-    "sql:default",
-    "sql:allow-execute",
     "updater:default",
     "process:allow-restart"
   ]

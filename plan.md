@@ -4,6 +4,8 @@ These milestones are ordered: make local writes reliable, make search match its 
 
 ## 1. Harden multi-step writes
 
+The original Rust transaction approach below is historical. The local service now owns SQLite transactions; the database and SQLx migration history remain in place.
+
 **Goal:** Adopt Convex's transactional mutation model for the local SQLite app. A mutation's reads, validation, and writes form one isolated unit: either all its changes commit, or none do. Convex calls these **transactions**; the relevant properties are **atomicity** and **isolation**. Convex also uses optimistic concurrency control for its transactional guarantees, but we do not need to reproduce its distributed implementation to get a reliable local mutation boundary. See [Convex's mutation API](https://docs.convex.dev/api/modules/server) and [transaction documentation](https://docs.convex.dev/components/using#transactions).
 
 ### Verified approach

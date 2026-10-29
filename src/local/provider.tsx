@@ -4,10 +4,7 @@ import { applySnapshot } from "./store";
 import { callMutation, watchState } from "./server-functions";
 import { toError } from "./query";
 
-/**
- * Opens the local database once, creates the profile + default Workspace on
- * first launch, then renders the app. Replaces the web app's AuthProvider.
- */
+/** Wait for the local service's first snapshot before rendering the app. */
 export function LocalProvider(props: ParentProps) {
   const [ready, setReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
