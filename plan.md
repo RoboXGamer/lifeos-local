@@ -110,6 +110,18 @@ The first implementation includes reusable templates, durable recurring tasks, t
 
 **Done when:** A weekly review answers what needs attention, what is waiting on someone else, and what can realistically ship next, with every recommendation traceable to local records.
 
+## 8. Habits and progress as core LifeOS records
+
+**Outcome:** One activity connects what was planned, what actually happened, and the goal it moved.
+
+- [x] Create habits and measurable goals in an Area, with flexible weekly habit targets and timezone-aware daily check-ins.
+- [x] Record a single activity from Today, a linked Task, or the CLI; update the associated habit and linked goals from that same record without completing the Task implicitly.
+- [x] Support counts, durations and numeric values, with explicit additive versus absolute measurements; prevent duplicate records and incompatible units.
+- [x] Preserve activity history and historical targets when definitions change. Corrections, voids, skipped/rest days, pauses, and unlogged days must remain distinguishable.
+- [x] Offer daily and weekly progress, source-linked history, task/goal drill-down, and Today check-ins. Share the local service, transactional writes, workspace isolation and live updates with other LifeOS features.
+
+**Done when:** Logging 35 minutes on a Rust practice Task meets a 30-minute habit target and adds exactly 35 minutes to its linked goal; correcting or voiding that same entry updates both views consistently.
+
 ## Integration rules
 
 - Keep the current stack. Desktop and CLI call the existing local service; scheduling, ingestion, analysis jobs, and all writes belong there rather than in UI timers or a second backend.
@@ -123,6 +135,6 @@ The first implementation includes reusable templates, durable recurring tasks, t
 
 ## Explicitly later
 
-Local verification passes: typecheck, all ten isolated domain suites, production client/service build, authenticated live updates, compiled CLI workflows/background scheduling/restart, and native desktop capture in both directions plus six productivity pages. Tests use temporary data. Packaged upgrade/installation, second-machine behavior, Windows sign-in, and real-repository revival trials remain separate acceptance work.
+Local verification passes: typecheck, all twelve isolated domain suites, production client/service build, authenticated live updates, compiled CLI workflows/background scheduling/restart, and native desktop capture in both directions plus six productivity pages. The habit-to-goal activity scenario is covered by domain and compiled-service tests; desktop verification covers navigation and rendering. Tests use temporary data. Packaged upgrade/installation, second-machine behavior, Windows sign-in, and real-repository revival trials remain separate acceptance work.
 
 A public template marketplace, universal app/activity recording, a general visual workflow builder, autonomous external messaging/payments, and automatic repository rewrites are outside these initial milestones. Add integrations only when a real daily workflow requires them.

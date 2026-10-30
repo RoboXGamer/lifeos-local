@@ -15,6 +15,7 @@ import type { RouteSectionProps } from "@solidjs/router";
 const navItems = [
   { id: "areas", label: "Areas", icon: "grid" },
   { id: "today", label: "Today", icon: "checkSquare" },
+  { id: "habits", label: "Habits and progress", icon: "heart" },
   { id: "upcoming", label: "Upcoming", icon: "calendar" },
   { id: "tags", label: "Tags", icon: "tag" },
   { id: "templates", label: "Templates", icon: "description" },

@@ -8,6 +8,7 @@ import { createAutomations } from "./automations";
 import { createProjects, listProjects, listProjectSources, listProjectCheckpoints, resumeProject, reportProject } from "./projects";
 import { createObligations, listEngagements, obligationDetails, obsoleteObligationItemIds } from "./obligations";
 import { createAttention, buildAttention } from "./attention";
+import { createHabits, listHabits, listGoals, listActivities, habitDetails, goalDetails } from "./habits";
 import { readPersistedItem, type ItemProvenance } from "./item-events";
 import type {
   AreaDoc,
@@ -837,7 +838,7 @@ const workspacesRemove = async (args: {
   await run("DELETE FROM templateInstances WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM templates WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM projectPlanTasks WHERE projectId IN (SELECT _id FROM projects WHERE workspaceId=?)", [workspace._id]);
-  for (const table of ["obligationReviews", "itemMutationEvents", "recurrenceOccurrences", "recurrenceSchedules", "automationRuns", "automations", "projectSources", "projectCheckpoints", "projects", "paymentAllocations", "obligationPayments", "obligationInvoices", "obligationFollowups", "commitments", "obligationDocuments", "engagements", "attentionFeedback", "itemEstimates"]) {
+  for (const table of ["obligationReviews", "itemMutationEvents", "recurrenceOccurrences", "recurrenceSchedules", "automationRuns", "automations", "projectSources", "projectCheckpoints", "projects", "paymentAllocations", "obligationPayments", "obligationInvoices", "obligationFollowups", "commitments", "obligationDocuments", "engagements", "attentionFeedback", "itemEstimates", "habitGoalLinks", "activityGoalLinks", "activityRevisions", "activityEntries", "habitDayMarks", "habitVersions", "goalVersions", "habits", "goals"]) {
     await run(`DELETE FROM ${table} WHERE workspaceId=?`, [workspace._id]);
   }
   await run("DELETE FROM items WHERE workspaceId = ?", [workspace._id]);
@@ -957,6 +958,7 @@ const automations = createAutomations({ createItem: create, applyTemplate: templ
 const projects = createProjects({ createItem: create });
 const obligations = createObligations(create, update);
 const attention = createAttention();
+const habits = createHabits({ onTargetReached: automations.onTargetReached });
 
 // Service-only entry point: the clock is never accepted from remote clients.
 export function tickRecurring(now = Date.now()) {
@@ -973,6 +975,9 @@ export function runProductivityTasks(now = Date.now()) {
 }
 
 export const api = {
+  habits: { list: listHabits, details: habitDetails, save: transactional('habits.save', habits.saveHabit), mark: transactional('habits.mark', habits.mark) },
+  goals: { list: listGoals, details: goalDetails, save: transactional('goals.save', habits.saveGoal) },
+  activity: { list: listActivities, log: transactional('activity.log', habits.log), edit: transactional('activity.edit', habits.edit), void: transactional('activity.void', habits.voidActivity) },
   attention: { build: buildAttention, feedback: transactional('attention.feedback', attention.feedback), estimate: transactional('attention.estimate', attention.estimate) },
   automations: {
     list: automations.list, runs: automations.runs, recipes: automations.recipes, preview: automations.preview,

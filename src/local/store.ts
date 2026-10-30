@@ -6,6 +6,7 @@ import type { AutomationDoc, AutomationRunDoc } from "./automations";
 import type { ProjectDoc, ProjectSourceDoc, ProjectCheckpointDoc } from "./projects";
 import type { EngagementDoc, ObligationDocument, CommitmentDoc, InvoiceDoc, PaymentDoc, AllocationDoc, ObligationFollowupDoc, ObligationReviewDoc } from "./obligations";
 import type { AttentionFeedbackDoc, ItemEstimateDoc } from "./attention";
+import type { HabitDoc, HabitVersionDoc, GoalDoc, GoalVersionDoc, ActivityDoc, HabitDayMarkDoc } from "./habits";
 
 // The current Solid RC can leave a trailing sparse slot after keyed deletion.
 // Preserve keyed identities, then explicitly synchronize the array length.
@@ -25,6 +26,12 @@ import type {
 } from "./types";
 
 export interface DbState {
+  habits: HabitDoc[];
+  habitVersions: HabitVersionDoc[];
+  goals: GoalDoc[];
+  goalVersions: GoalVersionDoc[];
+  activities: ActivityDoc[];
+  habitDayMarks: HabitDayMarkDoc[];
   attentionFeedback: AttentionFeedbackDoc[];
   itemEstimates: ItemEstimateDoc[];
   obligationFollowups: ObligationFollowupDoc[];
@@ -52,6 +59,7 @@ export interface DbState {
 }
 
 const emptyState: DbState = {
+  habits: [], habitVersions: [], goals: [], goalVersions: [], activities: [], habitDayMarks: [],
   attentionFeedback: [], itemEstimates: [], obligationFollowups: [], obligationReviews: [],
   automations: [], automationRuns: [], projects: [], projectSources: [], projectCheckpoints: [],
   engagements: [], obligationDocuments: [], commitments: [], obligationInvoices: [], obligationPayments: [], paymentAllocations: [],
@@ -77,6 +85,12 @@ export function applySnapshot(update: { epoch: string; revision: number; state: 
   const next = update.state;
   setData((state) => {
     state.profile = next.profile;
+    reconcile(next.habits ?? [], "_id")(state.habits);
+    reconcile(next.habitVersions ?? [], "_id")(state.habitVersions);
+    reconcile(next.goals ?? [], "_id")(state.goals);
+    reconcile(next.goalVersions ?? [], "_id")(state.goalVersions);
+    reconcile(next.activities ?? [], "_id")(state.activities);
+    reconcile(next.habitDayMarks ?? [], "_id")(state.habitDayMarks);
     reconcile(next.attentionFeedback ?? [], "_id")(state.attentionFeedback);
     reconcile(next.itemEstimates ?? [], "_id")(state.itemEstimates);
     reconcile(next.obligationFollowups ?? [], "_id")(state.obligationFollowups);
@@ -247,6 +261,12 @@ function attachTags(
 
 /** Reads every table into the reactive store. Personal scale: a full reload is a few ms. */
 export async function reload(): Promise<void> {
+  const [habits, habitVersions, goals, goalVersions, activities, habitDayMarks, habitGoalLinks, activityGoalLinks] = await Promise.all([
+    select<Row>("SELECT * FROM habits ORDER BY createdAt"), select<Row>("SELECT * FROM habitVersions ORDER BY createdAt"),
+    select<Row>("SELECT * FROM goals ORDER BY createdAt"), select<Row>("SELECT * FROM goalVersions ORDER BY createdAt"),
+    select<Row>("SELECT * FROM activityEntries ORDER BY createdAt"), select<Row>("SELECT * FROM habitDayMarks"),
+    select<Row>("SELECT * FROM habitGoalLinks"), select<Row>("SELECT * FROM activityGoalLinks"),
+  ]);
   const [attentionFeedback, itemEstimates, obligationFollowups, obligationReviews] = await Promise.all([
     select<Row>("SELECT * FROM attentionFeedback"), select<Row>("SELECT * FROM itemEstimates"), select<Row>("SELECT * FROM obligationFollowups"),
     select<Row>("SELECT * FROM obligationReviews ORDER BY createdAt"),
@@ -275,6 +295,12 @@ export async function reload(): Promise<void> {
 
   setData((state) => {
     state.profile = profiles[0] ? mapProfile(profiles[0]) : undefined;
+    reconcile(habits.map(row=>({...row,goalIds:habitGoalLinks.filter(link=>link.habitId===row._id&&link.workspaceId===row.workspaceId).map(link=>String(link.goalId))})) as unknown as HabitDoc[], "_id")(state.habits);
+    reconcile(habitVersions as unknown as HabitVersionDoc[], "_id")(state.habitVersions);
+    reconcile(goals as unknown as GoalDoc[], "_id")(state.goals);
+    reconcile(goalVersions as unknown as GoalVersionDoc[], "_id")(state.goalVersions);
+    reconcile(activities.map(row=>({...row,voided:Boolean(row.voided),goalIds:activityGoalLinks.filter(link=>link.activityId===row._id&&link.workspaceId===row.workspaceId).map(link=>String(link.goalId))})) as unknown as ActivityDoc[], "_id")(state.activities);
+    reconcile(habitDayMarks as unknown as HabitDayMarkDoc[], "_id")(state.habitDayMarks);
     reconcile(attentionFeedback as unknown as AttentionFeedbackDoc[], "_id")(state.attentionFeedback);
     reconcile(itemEstimates as unknown as ItemEstimateDoc[], "_id")(state.itemEstimates);
     reconcile(obligationFollowups as unknown as DbState["obligationFollowups"], "_id")(state.obligationFollowups);

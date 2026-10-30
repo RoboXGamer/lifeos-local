@@ -10,6 +10,7 @@ import { useItemPanelRoute } from "../features/items/routing";
 import { useWorkspaces } from "../features/workspaces/context";
 import "./Retrieval.css";
 import { TodayAttention } from "../features/attention/TodayAttention";
+import { HabitsToday } from "../features/attention/HabitsToday";
 
 export default function Today() {
   const workspaces = useWorkspaces();
@@ -55,6 +56,7 @@ export default function Today() {
           Add for today
         </button>
       </header>
+      <HabitsToday />
       <TodayAttention />
       <Show
         when={rows.length > 0}

@@ -1,0 +1,13 @@
+CREATE TABLE habits (_id TEXT PRIMARY KEY, workspaceId TEXT NOT NULL, areaId TEXT, title TEXT NOT NULL, unit TEXT NOT NULL, dailyTarget REAL NOT NULL, daysPerWeek INTEGER NOT NULL, timezone TEXT NOT NULL, state TEXT NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL);
+CREATE INDEX idx_habits_workspace ON habits(workspaceId);
+CREATE TABLE habitVersions (_id TEXT PRIMARY KEY, workspaceId TEXT NOT NULL, habitId TEXT NOT NULL, effectiveDate TEXT NOT NULL, dailyTarget REAL NOT NULL, daysPerWeek INTEGER NOT NULL, unit TEXT NOT NULL, timezone TEXT NOT NULL, state TEXT NOT NULL, createdAt INTEGER NOT NULL);
+CREATE INDEX idx_habit_versions ON habitVersions(workspaceId,habitId,effectiveDate,createdAt);
+CREATE TABLE goals (_id TEXT PRIMARY KEY, workspaceId TEXT NOT NULL, areaId TEXT, title TEXT NOT NULL, unit TEXT NOT NULL, target REAL NOT NULL, startDate TEXT NOT NULL, endDate TEXT, state TEXT NOT NULL, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL);
+CREATE INDEX idx_goals_workspace ON goals(workspaceId);
+CREATE TABLE goalVersions (_id TEXT PRIMARY KEY, workspaceId TEXT NOT NULL, goalId TEXT NOT NULL, target REAL NOT NULL, startDate TEXT NOT NULL, endDate TEXT, state TEXT NOT NULL, createdAt INTEGER NOT NULL);
+CREATE TABLE habitGoalLinks (_id TEXT PRIMARY KEY, workspaceId TEXT NOT NULL, habitId TEXT NOT NULL, goalId TEXT NOT NULL, UNIQUE(habitId,goalId));
+CREATE TABLE activityEntries (_id TEXT PRIMARY KEY, workspaceId TEXT NOT NULL, habitId TEXT, itemId TEXT, unit TEXT NOT NULL, value REAL NOT NULL, mode TEXT NOT NULL, date TEXT NOT NULL, note TEXT NOT NULL, habitTarget REAL, habitDaysPerWeek INTEGER, voided INTEGER NOT NULL DEFAULT 0, createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL);
+CREATE INDEX idx_activity_workspace_date ON activityEntries(workspaceId,date,createdAt);
+CREATE TABLE activityGoalLinks (_id TEXT PRIMARY KEY, workspaceId TEXT NOT NULL, activityId TEXT NOT NULL, goalId TEXT NOT NULL, UNIQUE(activityId,goalId));
+CREATE TABLE activityRevisions (_id TEXT PRIMARY KEY, workspaceId TEXT NOT NULL, activityId TEXT NOT NULL, action TEXT NOT NULL, previous TEXT NOT NULL, current TEXT NOT NULL, createdAt INTEGER NOT NULL);
+CREATE TABLE habitDayMarks (_id TEXT PRIMARY KEY, workspaceId TEXT NOT NULL, habitId TEXT NOT NULL, date TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('rest','skip')), createdAt INTEGER NOT NULL, updatedAt INTEGER NOT NULL, UNIQUE(habitId,date));

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-const checks = ['test_server_storage.mjs', 'test_templates.mjs', 'test_recurrence.mjs', 'test_automations.mjs', 'test_projects.mjs', 'test_obligations.mjs', 'test_attention.mjs', 'test_startup.mjs', 'test_productivity_migrations.mjs', 'test_search.mjs', 'test_feature_integrations.mjs'];
+const checks = ['test_server_storage.mjs', 'test_templates.mjs', 'test_recurrence.mjs', 'test_automations.mjs', 'test_projects.mjs', 'test_obligations.mjs', 'test_attention.mjs', 'test_startup.mjs', 'test_productivity_migrations.mjs', 'test_search.mjs', 'test_feature_integrations.mjs', 'test_habits.mjs'];
 for (const check of checks) {
   const result = spawnSync(process.execPath, [`scripts/${check}`], { stdio: 'inherit', windowsHide: true });
   if (result.error) throw result.error;

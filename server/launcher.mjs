@@ -86,6 +86,8 @@ const help = `Usage: lifeos [--json] [--workspace ID] COMMAND
   template-save ITEM_ID NAME YYYY-MM-DD
   template-import FILE | template-export TEMPLATE_ID
   recurring | automations | projects | obligations | attention
+  habits | goals | habit-show HABIT_ID [DATE] | goal-show GOAL_ID
+  habit-log HABIT_ID VALUE YYYY-MM-DD [TASK_ID] [GOAL_ID]
   repeat ITEM_ID SCHEDULE_JSON | recurrence-control SCHEDULE_ID ACTION [DATE]
   checkpoint ITEM_ID DID FAILED NEXT
   project-scan PROJECT_ID | project-resume PROJECT_ID | project-report PROJECT_ID
@@ -129,7 +131,14 @@ async function main() {
   else if (action === 'areas') result = await api('query', 'areas', { workspaceId });
   else if (action === 'list') result = await api('query', 'items', { workspaceId });
   else if (action === 'templates') result = await api('query', 'templates', { workspaceId });
-  else if (['recurring', 'automations', 'projects', 'obligations', 'attention'].includes(action) && rest.length === 0) result = await api('query', action === 'recurring' ? 'recurrence' : action, { workspaceId });
+  else if (['recurring', 'automations', 'projects', 'obligations', 'attention', 'habits', 'goals'].includes(action) && rest.length === 0) result = await api('query', action === 'recurring' ? 'recurrence' : action, { workspaceId });
+  else if (action === 'habit-show' && rest.length >= 1 && rest.length <= 2) result = await api('query', 'habits.details', { workspaceId, habitId: rest[0], date: rest[1] });
+  else if (action === 'goal-show' && rest.length === 1) result = await api('query', 'goals.details', { workspaceId, goalId: rest[0] });
+  else if (action === 'habit-log' && rest.length >= 3 && rest.length <= 5) {
+    const value = Number(rest[1]);
+    if (!Number.isFinite(value) || !rest[1].trim()) throw new Error('Habit value must be a number');
+    result = (await api('mutation', 'activity.log', { workspaceId, habitId: rest[0], value, date: rest[2], mode: 'increment', itemId: rest[3] || undefined, ...(rest[4] ? { goalIds: [rest[4]] } : {}) })).result;
+  }
   else if (action === 'repeat' && rest.length === 2) result = (await api('mutation', 'recurrence.save', { workspaceId, itemId: rest[0], definition: JSON.parse(rest[1]) })).result;
   else if (action === 'recurrence-control' && rest.length >= 2 && rest.length <= 3) result = (await api('mutation', 'recurrence.control', { workspaceId, scheduleId: rest[0], action: rest[1], date: rest[2] })).result;
   else if (action === 'checkpoint' && rest.length === 4) result = (await api('mutation', 'automations.checkpoint', { workspaceId, itemId: rest[0], did: rest[1], failed: rest[2], next: rest[3] })).result;
@@ -142,7 +151,7 @@ async function main() {
   else if (action === 'run' && rest.length === 2) {
     const payload = JSON.parse(rest[1]);
     if (!payload || Array.isArray(payload) || typeof payload !== 'object') throw new Error('Arguments must be a JSON object');
-    if (!/^(?:templates|recurrence|automations|projects|obligations|attention)\./.test(rest[0])) throw new Error('Use the dedicated CLI commands for core item/workspace operations');
+    if (!/^(?:templates|recurrence|automations|projects|obligations|attention|habits|goals|activity)\./.test(rest[0])) throw new Error('Use the dedicated CLI commands for core item/workspace operations');
     result = (await api('mutation', rest[0], { ...payload, workspaceId })).result;
   }
   else if (['template-preview', 'template-apply'].includes(action) && rest.length >= 2 && rest.length <= 3) {

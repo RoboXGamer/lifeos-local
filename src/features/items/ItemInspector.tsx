@@ -25,6 +25,7 @@ import "./ItemInspector.css";
 import { TemplateSaveControl } from "./TemplateSaveControl";
 import { RecurrenceControl } from "./RecurrenceControl";
 import { CheckpointControl } from "./CheckpointControl";
+import { ActivityLogControl } from "./ActivityLogControl";
 
 const statuses: ItemStatus[] = ["Todo", "In Progress", "Done"];
 
@@ -663,6 +664,7 @@ function ItemViewPanel(props: {
 
         <Show when={!item().archived && !item().parentId}><TemplateSaveControl item={item()} /></Show>
         <Show when={!item().archived && ["Task", "Income", "Expense"].includes(item().type ?? "")}><RecurrenceControl item={item()} /></Show>
+        <Show when={!item().archived && item().type === "Task"}><ActivityLogControl item={item()} /></Show>
         <Show when={!item().archived && !item().parentId}><CheckpointControl item={item()} /></Show>
         <footer class="item-view-actions">
           <Show when={!item().archived}>

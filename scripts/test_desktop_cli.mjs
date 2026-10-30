@@ -61,7 +61,7 @@ try {
   if (!found) console.log('Desktop after capture:', (await evaluate(page.webSocketDebuggerUrl, 'document.body.innerText')).slice(0, 500));
   assert(found, 'Desktop capture did not appear in the CLI');
   await evaluate(page.webSocketDebuggerUrl, "window.__lifeosSmokeErrors = []; window.addEventListener('error', event => window.__lifeosSmokeErrors.push(event.message)); window.addEventListener('unhandledrejection', event => window.__lifeosSmokeErrors.push(String(event.reason)))");
-  for (const [route, heading] of [['templates', 'Templates'], ['recurring', 'Recurring'], ['automations', 'Automations'], ['projects', 'Projects'], ['obligations', 'Promise to payment'], ['today', 'Today']]) {
+  for (const [route, heading] of [['templates', 'Templates'], ['recurring', 'Recurring'], ['automations', 'Automations'], ['projects', 'Projects'], ['obligations', 'Promise to payment'], ['habits', 'Habits & progress'], ['today', 'Today']]) {
     await evaluate(page.webSocketDebuggerUrl, `document.querySelector('a.nav-button[href="/app/${route}"]').click()`);
     let loaded = false;
     for (let i = 0; i < 30; i++) { if (await evaluate(page.webSocketDebuggerUrl, `document.querySelector('main h2')?.textContent === ${JSON.stringify(heading)}`)) { loaded = true; break; } await new Promise(resolve => setTimeout(resolve, 100)); }

@@ -7,6 +7,8 @@ import type { CreateItem, TemplateApply } from "./templates";
 import type { ItemInput } from "./api";
 import type { Id, ItemView } from "./types";
 import { readPersistedItem as readItem, type ItemProvenance } from "./item-events";
+import { habitDetails, goalDetails } from "./habits";
+import type { HabitTargetEvent } from "./habits";
 
 const timezoneSchema = z.string().max(100).refine(value => {
   try { new Intl.DateTimeFormat("en", { timeZone: value }).format(); return true; } catch { return false; }
@@ -15,7 +17,8 @@ const tagsSchema = z.array(z.string().trim().min(1).max(40)).max(12);
 export const automationSchema = z.object({
   name: z.string().trim().min(1).max(80),
   trigger: z.object({
-    kind: z.enum(["schedule", "item_created", "status_changed", "due_date", "inactivity"]),
+    kind: z.enum(["schedule", "item_created", "status_changed", "due_date", "inactivity", "habit_target_met", "goal_target_reached"]),
+    entityId: z.string().nullable().default(null),
     timezone: timezoneSchema.default("UTC"),
     weekday: z.number().int().min(0).max(6).default(5),
     days: z.number().int().min(1).max(3650).default(14),
@@ -47,6 +50,7 @@ export interface AutomationDoc {
 export interface AutomationInput {
   explanation: string; date: string; item: ItemView | null; definition: AutomationDefinition;
   event?: { id: string; origin: ItemProvenance["origin"]; sourceId?: string };
+  progress?: HabitTargetEvent;
 }
 export interface AutomationRunDoc {
   _id: string; workspaceId: string; automationId: string; eventKey: string;
@@ -78,16 +82,20 @@ const activeWorkspace = (id: string) => data.workspaces.some(w => w._id === id &
 function activeItem(item: ItemView): boolean {
   return !item.archived && activeWorkspace(item.workspaceId) && (!item.areaId || data.areas.some(a => a._id === item.areaId && a.workspaceId === item.workspaceId && !a.archived));
 }
-function matches(item: ItemView | null, definition: AutomationDefinition): boolean {
+function matches(item: ItemView | null, definition: AutomationDefinition, progress?: HabitTargetEvent): boolean {
   const c = definition.conditions;
+  if (progress) {
+    const entity = progress.kind === "habit_target_met" ? data.habits.find(h => h._id === progress.entityId && h.workspaceId === progress.workspaceId) : data.goals.find(g => g._id === progress.entityId && g.workspaceId === progress.workspaceId);
+    return !!entity && (!definition.trigger.entityId || definition.trigger.entityId === entity._id) && (!c.areaId || c.areaId === entity.areaId) && !c.type && !c.status && !c.tags.length;
+  }
   if (!item) return !c.areaId && !c.type && !c.status && c.tags.length === 0;
   return (!c.areaId || c.areaId === item.areaId) && (!c.type || c.type === item.type) && (!c.status || c.status === item.status) && c.tags.every(tag => item.tags.some(t => t.toLowerCase() === tag.toLowerCase()));
 }
 function substitute(text: string, input: AutomationInput): string {
-  return text.replace(/\{\{(title|date|status)\}\}/g, (_, key: string) => key === "date" ? input.date : key === "title" ? input.item?.title ?? "Workspace" : input.item?.status ?? "");
+  return text.replace(/\{\{(title|date|status)\}\}/g, (_, key: string) => key === "date" ? input.date : key === "title" ? input.item?.title ?? input.progress?.title ?? "Workspace" : input.item?.status ?? "");
 }
 function describe(definition: AutomationDefinition): string {
-  const trigger = { schedule: `Every ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][definition.trigger.weekday]} (${definition.trigger.timezone})`, item_created: "When an item is created", status_changed: "When a task status changes", due_date: "When an item is due", inactivity: `After ${definition.trigger.days} days without family activity` }[definition.trigger.kind];
+  const trigger = { schedule: `Every ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][definition.trigger.weekday]} (${definition.trigger.timezone})`, item_created: "When an item is created", status_changed: "When a task status changes", due_date: "When an item is due", inactivity: `After ${definition.trigger.days} days without family activity`, habit_target_met: "When a habit's daily target is met", goal_target_reached: "When a goal target is reached" }[definition.trigger.kind];
   const conditions = [definition.conditions.type, definition.conditions.status, ...definition.conditions.tags.map(t => `#${t}`), definition.conditions.areaId ? "selected area" : null].filter(Boolean).join(", ");
   const action = { create_item: `create ${definition.action.type.toLowerCase()} “${definition.action.title}”`, reminder: `add reminder “${definition.action.title}”`, apply_template: `apply template ${definition.action.templateId}`, update_item: "update the matching item's allowed fields" }[definition.action.kind];
   return `${trigger}${conditions ? ` matching ${conditions}` : ""}, ${action}.`;
@@ -110,14 +118,21 @@ export function createAutomations(deps: Dependencies) {
     const item = args.itemId ? data.items.find(i => i._id === args.itemId && i.workspaceId === args.workspaceId) ?? null : null;
     if (args.itemId && (!item || !activeItem(item))) throw new Error("Choose an active item in this Workspace.");
     const date = localDate(args.now ?? Date.now(), definition.trigger.timezone);
-    const input: AutomationInput = { definition, date, item, explanation: describe(definition) };
-    const eligible = matches(item, definition);
+    const progressKind = definition.trigger.kind === "habit_target_met" || definition.trigger.kind === "goal_target_reached" ? definition.trigger.kind : null;
+    const entity = progressKind === "habit_target_met" ? data.habits.find(h => h.workspaceId === args.workspaceId && (definition.trigger.entityId ? h._id === definition.trigger.entityId : h.state === "active")) : progressKind === "goal_target_reached" ? data.goals.find(g => g.workspaceId === args.workspaceId && (definition.trigger.entityId ? g._id === definition.trigger.entityId : g.state === "active")) : undefined;
+    const progress: HabitTargetEvent | undefined = progressKind && entity ? { workspaceId: args.workspaceId, kind: progressKind, entityId: entity._id, title: entity.title, date, activityId: "preview", itemId: null, value: 1, target: 1 } : undefined;
+    const input: AutomationInput = { definition, date, item, explanation: describe(definition), ...(progress ? { progress } : {}) };
+    const eligible = progressKind ? !!progress && matches(null, definition, progress) : matches(item, definition);
     const result = definition.action.kind === "apply_template" ? previewTemplate({ workspaceId: args.workspaceId, templateId: definition.action.templateId, startDate: date, areaId: item?.areaId ?? null, variables: Object.fromEntries(Object.entries(definition.action.variables).map(([k, v]) => [k, substitute(v, input)])) }).items.map(i => i.title) : [substitute(definition.action.title, input)];
-    return { explanation: describe(definition), matches: eligible, output: result, sample: item?.title ?? "Workspace" };
+    return { explanation: describe(definition), matches: eligible, output: result, sample: progress?.title ?? item?.title ?? "Workspace" };
   };
   const save = async (args: { workspaceId: Id<"workspaces">; automationId?: string; definition: AutomationDefinition; enabled?: boolean }) => {
     requireWorkspace(args.workspaceId);
     const definition = automationSchema.parse(args.definition);
+    const progressRule = definition.trigger.kind === "habit_target_met" || definition.trigger.kind === "goal_target_reached";
+    if (progressRule && (definition.conditions.type || definition.conditions.status || definition.conditions.tags.length)) throw new Error("Habit and goal triggers support an area condition, not item type, status, or tags.");
+    if (progressRule && definition.action.kind === "update_item") throw new Error("Habit and goal triggers cannot update an item.");
+    if (progressRule && definition.trigger.entityId && !(definition.trigger.kind === "habit_target_met" ? data.habits.some(h => h._id === definition.trigger.entityId && h.workspaceId === args.workspaceId) : data.goals.some(g => g._id === definition.trigger.entityId && g.workspaceId === args.workspaceId))) throw new Error("Choose a habit or goal in this Workspace.");
     if (definition.conditions.areaId && !data.areas.some(a => a._id === definition.conditions.areaId && a.workspaceId === args.workspaceId && !a.archived)) throw new Error("Choose an active area in this Workspace.");
     if (definition.trigger.kind === "schedule" && (definition.conditions.areaId || definition.conditions.type || definition.conditions.status || definition.conditions.tags.length)) throw new Error("Scheduled rules run once per Workspace and cannot filter a source item.");
     if (definition.action.kind === "update_item" && definition.trigger.kind === "schedule") throw new Error("A scheduled rule has no source item to update.");
@@ -167,10 +182,19 @@ export function createAutomations(deps: Dependencies) {
     const next = z.string().trim().min(1).max(5000).parse(args.next);
     return deps.createItem({ workspaceId: args.workspaceId, title: `Checkpoint: ${root.title}`.slice(0, 200), areaId: root.areaId, parentId: root._id, type: "Note", status: null, priority: null, amount: null, financialState: null, dueDate: null, tags: ["checkpoint"], description: `What changed\n${did}\n\nWhat failed\n${failed || "No failure recorded."}\n\nNext action\n${next}` }, { origin: "checkpoint", sourceId: root._id });
   };
-  const enqueue = async (rule: AutomationDoc, eventKey: string, item: ItemView | null, date: string, now: number, event?: AutomationInput["event"]) => {
-    if (!activeWorkspace(rule.workspaceId) || (item && (!activeItem(item) || item.workspaceId !== rule.workspaceId)) || !matches(item, rule.definition)) return;
-    const input: AutomationInput = { definition: rule.definition, item, date, explanation: describe(rule.definition), ...(event ? { event } : {}) };
+  const enqueue = async (rule: AutomationDoc, eventKey: string, item: ItemView | null, date: string, now: number, event?: AutomationInput["event"], progress?: HabitTargetEvent) => {
+    if (!activeWorkspace(rule.workspaceId) || (item && (!activeItem(item) || item.workspaceId !== rule.workspaceId)) || !matches(item, rule.definition, progress)) return;
+    const input: AutomationInput = { definition: rule.definition, item, date, explanation: describe(rule.definition), ...(event ? { event } : {}), ...(progress ? { progress } : {}) };
     await run("INSERT OR IGNORE INTO automationRuns (_id,workspaceId,automationId,eventKey,status,attempts,nextAttempt,input,createdAt,updatedAt) VALUES (?,?,?,?,'pending',0,?,?,?,?)", [nanoid(), rule.workspaceId, rule._id, eventKey, now, JSON.stringify(input), now, now]);
+  };
+  // Only the first qualifying completion for a habit/day or goal/target queues each rule.
+  const onTargetReached = async (progress: HabitTargetEvent) => {
+    const rows = await select<RuleRow>("SELECT * FROM automations WHERE workspaceId=? AND enabled=1", [progress.workspaceId]);
+    const key = progress.kind === "habit_target_met" ? `${progress.kind}:${progress.entityId}:${progress.date}` : `${progress.kind}:${progress.entityId}:${progress.target}`;
+    for (const row of rows) {
+      const rule = parseRule(row);
+      if (rule.definition.trigger.kind === progress.kind) await enqueue(rule, key, null, progress.date, Date.now(), undefined, progress);
+    }
   };
   // Called inside the existing transaction/savepoint, after the item and tags are written.
   const itemChanged = async (itemId: string, created: boolean, previousStatus?: ItemView["status"], provenance: ItemProvenance = { origin: "user" }, now = Date.now()) => {
@@ -241,6 +265,14 @@ export function createAutomations(deps: Dependencies) {
       }
       await run("SAVEPOINT automation_job");
       try {
+        if (job.input.progress) {
+          const p = job.input.progress;
+          const entity = p.kind === "habit_target_met" ? data.habits.find(h => h._id === p.entityId && h.workspaceId === p.workspaceId) : data.goals.find(g => g._id === p.entityId && g.workspaceId === p.workspaceId);
+          const current = entity && entity.state === "active" ? (p.kind === "habit_target_met" ? habitDetails({ workspaceId: p.workspaceId as Id<"workspaces">, habitId: p.entityId, date: p.date }) : goalDetails({ workspaceId: p.workspaceId as Id<"workspaces">, goalId: p.entityId })) : null;
+          const value = current && "todayValue" in current ? current.todayValue : current && "current" in current ? current.current : -1;
+          const target = current && "todayTarget" in current ? current.todayTarget : current && "goal" in current ? current.goal.target : -1;
+          if (value < p.target || target !== p.target || !matches(null, job.input.definition, p)) { await run("UPDATE automationRuns SET status='cancelled',error='Target is no longer met or active.',updatedAt=? WHERE _id=?", [now, job._id]); await run("RELEASE SAVEPOINT automation_job"); continue; }
+        }
         const result = await execute(job, source);
         await run("UPDATE automationRuns SET status='completed',attempts=attempts+1,result=?,error=NULL,updatedAt=? WHERE _id=?", [JSON.stringify(result), now, job._id]);
         await run("RELEASE SAVEPOINT automation_job"); completed++;
@@ -253,5 +285,5 @@ export function createAutomations(deps: Dependencies) {
     }
     return { queued, completed, failed };
   };
-  return { list, runs, recipes, preview, save, setEnabled, remove, retry, checkpoint, itemChanged, tick };
+  return { list, runs, recipes, preview, save, setEnabled, remove, retry, checkpoint, itemChanged, onTargetReached, tick };
 }

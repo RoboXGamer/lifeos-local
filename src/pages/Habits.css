@@ -1,0 +1,13 @@
+.habits-details,.habits-goals { display: grid; gap: 16px; min-width: 0; }
+.habits-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.habits-numbers { display: flex; flex-wrap: wrap; gap: 28px; }
+.habits-numbers div,.habit-activity div { display: grid; gap: 4px; }
+.habits-form { display: grid; gap: 12px; }
+.habits-goal-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,290px),1fr)); gap: 14px; }
+.habits-goal-grid progress { width: 100%; height: 8px; accent-color: var(--color-purple); }
+.habits-goal-grid summary,.habit-activity summary { cursor: pointer; font-size: .8rem; }
+.habit-activity { display: grid; gap: 8px; border-top: 1px solid var(--color-border); padding-top: 12px; }
+.habit-links { display: grid; gap: 8px; border: 1px solid var(--color-border); border-radius: 10px; padding: 12px; }
+.habit-links label { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+.habit-links input[type="checkbox"] { width: auto; }
+@media (max-width: 680px) { .habits-heading { flex-wrap: wrap; } }

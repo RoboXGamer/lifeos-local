@@ -17,6 +17,7 @@ import migration6 from '../src-tauri/migrations/0006_projects.sql?raw';
 import migration7 from '../src-tauri/migrations/0007_obligations.sql?raw';
 import migration8 from '../src-tauri/migrations/0008_attention.sql?raw';
 import migration9 from '../src-tauri/migrations/0009_feature_integrations.sql?raw';
+import migration10 from '../src-tauri/migrations/0010_habits.sql?raw';
 import { randomUUID } from 'node:crypto';
 
 let initialized;
@@ -24,6 +25,8 @@ const epoch = randomUUID();
 let revision = 0;
 const subscribers = new Set();
 const operations = {
+  'habits.save': api.habits.save, 'habits.mark': api.habits.mark, 'goals.save': api.goals.save,
+  'activity.log': api.activity.log, 'activity.edit': api.activity.edit, 'activity.void': api.activity.void,
   'attention.feedback': api.attention.feedback, 'attention.estimate': api.attention.estimate,
   ...Object.fromEntries(['save', 'setEnabled', 'remove', 'retry', 'checkpoint'].map(key => [`automations.${key}`, api.automations[key]])),
   ...Object.fromEntries(['create', 'update', 'checkpoint', 'addSource', 'scan', 'acceptPlan', 'removeSource', 'remove'].map(key => [`projects.${key}`, api.projects[key]])),
@@ -47,7 +50,7 @@ export async function initialize() {
     const directory = process.env.LIFEOS_DATA_DIR ?? join(process.env.APPDATA ?? '', 'dev.a5in.lifeos');
     if (!directory || (!process.env.LIFEOS_DATA_DIR && !process.env.APPDATA)) throw new Error('Cannot locate LifeOS data directory');
     mkdirSync(directory, { recursive: true });
-    const storage = openStorage(join(directory, 'lifeos.db'), [[1, 'create_todos', migration1], [2, 'lifeos_domain', migration2], [3, 'templates', migration3], [4, 'recurrence', migration4], [5, 'automations', migration5], [6, 'projects', migration6], [7, 'obligations', migration7], [8, 'attention', migration8], [9, 'feature_integrations', migration9]]);
+    const storage = openStorage(join(directory, 'lifeos.db'), [[1, 'create_todos', migration1], [2, 'lifeos_domain', migration2], [3, 'templates', migration3], [4, 'recurrence', migration4], [5, 'automations', migration5], [6, 'projects', migration6], [7, 'obligations', migration7], [8, 'attention', migration8], [9, 'feature_integrations', migration9], [10, 'habits', migration10]]);
     installStorageAdapter(storage);
     setProjectCollector(collectProject);
     setObligationPdfExtractor(extractObligationPdf);
@@ -86,6 +89,8 @@ export async function query(name, args) {
     'projects.checkpoints': () => api.projects.checkpoints(args), 'projects.resume': () => api.projects.resume(args), 'projects.report': () => api.projects.report(args),
     'obligations': () => api.obligations.list(args), 'obligations.details': () => api.obligations.details(args),
     'attention': () => api.attention.build(args),
+    'habits': () => api.habits.list(args), 'habits.details': () => api.habits.details(args),
+    'goals': () => api.goals.list(args), 'goals.details': () => api.goals.details(args), 'activity': () => api.activity.list(args),
   };
   if (!Object.hasOwn(queries, name)) throw new Error('Unknown query');
   return JSON.parse(JSON.stringify(queries[name]() ?? null));

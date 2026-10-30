@@ -1,0 +1,13 @@
+.habits-today { flex-shrink: 0; display: grid; gap: 14px; border: 1px solid var(--color-border); border-radius: 16px; background: white; padding: 18px; }
+.habits-today header { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.habits-today h3 { font-size: 1.05rem; }
+.habits-today p,.habits-today small { color: hsl(225 12% 43%); font-size: .78rem; }
+.habits-today-list { display: grid; gap: 9px; }
+.habit-today-card { display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 12px; align-items: center; border-top: 1px solid var(--color-border); padding-top: 10px; }
+.habit-today-card strong,.habit-today-card small { display: block; }
+.habit-today-card form,.habit-today-card details div { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.habit-today-card input { width: 80px; min-width: 0; padding: 7px; border: 1px solid var(--color-border); border-radius: 7px; }
+.habit-today-card button { border: 1px solid var(--color-border); border-radius: 7px; padding: 7px 9px; background: white; cursor: pointer; font-size: .75rem; }
+.habit-today-card summary { cursor: pointer; font-size: .75rem; }
+.habit-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 680px) { .habit-today-card { grid-template-columns: 1fr auto; } .habit-today-card details { grid-column: 1 / -1; } }
