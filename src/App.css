@@ -85,7 +85,7 @@ body {
   gap: 4px;
   align-items: center;
   place-self: stretch center;
-  justify-content: safe center;
+  justify-content: flex-start;
 }
 
 .nav-sep {
