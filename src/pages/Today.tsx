@@ -11,6 +11,7 @@ import { useWorkspaces } from "../features/workspaces/context";
 import "./Retrieval.css";
 import { TodayAttention } from "../features/attention/TodayAttention";
 import { HabitsToday } from "../features/attention/HabitsToday";
+import "./TodayLayout.css";
 
 export default function Today() {
   const workspaces = useWorkspaces();
@@ -44,9 +45,9 @@ export default function Today() {
   };
 
   return (
-    <section class="retrieval-page">
+    <section class="retrieval-page today-page">
       <header class="retrieval-header">
-        <h2>Today</h2>
+        <div><h2>Today</h2><p class="today-date">{new Date(`${today}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p></div>
         <button
           type="button"
           class="primary-action"
@@ -56,8 +57,7 @@ export default function Today() {
           Add for today
         </button>
       </header>
-      <HabitsToday />
-      <TodayAttention />
+      <div class="today-layout"><div class="today-work"><div class="today-work-heading"><h3>My day</h3><span>{rows.length} {rows.length === 1 ? "item" : "items"}</span></div>
       <Show
         when={rows.length > 0}
         fallback={
@@ -109,6 +109,7 @@ export default function Today() {
           </div>
         </div>
       </Show>
+      </div><aside class="today-context" aria-label="Daily context"><HabitsToday /><details class="today-suggestions"><summary>Worth your attention</summary><TodayAttention /></details></aside></div>
     </section>
   );
 }

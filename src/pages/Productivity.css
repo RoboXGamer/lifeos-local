@@ -1,10 +1,11 @@
 .productivity-page { display: flex; flex-direction: column; gap: 20px; min-width: 0; min-height: 0; width: 100%; padding: 4px 8px 20px; overflow-y: auto; }
 .productivity-page header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .productivity-page header > div { min-width: 0; }
-.productivity-page h2 { font-size: clamp(1.7rem, 4vw, 2.25rem); letter-spacing: -.04em; }
+.productivity-page h2 { font-size: clamp(1.45rem, 2.4vw, 1.8rem); letter-spacing: -.035em; }
 .productivity-page h3 { font-size: 1.25rem; letter-spacing: -.02em; }
 .productivity-page h4 { font-size: 1rem; }
 .productivity-page p, .productivity-card small { color: hsl(225 12% 43%); }
+.productivity-page p, .productivity-page li, .productivity-page input, .productivity-page select, .productivity-page textarea { font-size: .82rem; }
 .productivity-layout { display: grid; grid-template-columns: minmax(190px, 260px) minmax(0, 1fr); gap: 22px; align-items: start; }
 .productivity-list { display: grid; gap: 8px; }
 .productivity-list > button { text-align: left; display: grid; gap: 5px; }
@@ -13,7 +14,7 @@
 .productivity-page button:disabled { cursor: default; opacity: .55; }
 .productivity-card { display: flex; flex-direction: column; gap: 16px; padding: 22px; border: 1px solid var(--color-border); border-radius: 16px; background: rgb(255 255 255 / 90%); min-width: 0; }
 .productivity-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 12px; min-width: 0; }
-.productivity-page label, .productivity-control label { display: grid; gap: 6px; font-size: .85rem; font-weight: 600; }
+.productivity-page label, .productivity-control label { display: grid; gap: 6px; font-size: .75rem; font-weight: 600; }
 .productivity-page input, .productivity-page select, .productivity-page textarea, .productivity-control input, .productivity-control select, .productivity-control textarea { width: 100%; min-width: 0; border: 1px solid var(--color-border); border-radius: 8px; padding: 9px 11px; background: white; }
 .productivity-page .primary-action { color: white; background: var(--color-purple); border-color: var(--color-purple); }
 .productivity-page .primary-action:hover { color: white; background: hsl(248 70% 51%); }

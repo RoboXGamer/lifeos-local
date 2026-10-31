@@ -15,15 +15,18 @@ import type { RouteSectionProps } from "@solidjs/router";
 const navItems = [
   { id: "areas", label: "Areas", icon: "grid" },
   { id: "today", label: "Today", icon: "checkSquare" },
-  { id: "habits", label: "Habits and progress", icon: "heart" },
   { id: "upcoming", label: "Upcoming", icon: "calendar" },
   { id: "tags", label: "Tags", icon: "tag" },
+  { id: "archive", label: "Archive", icon: "archive" },
+] as const;
+
+const moreItems = [
+  { id: "habits", label: "Habits and progress", icon: "heart" },
   { id: "templates", label: "Templates", icon: "description" },
   { id: "recurring", label: "Recurring", icon: "clock" },
   { id: "projects", label: "Projects", icon: "folder" },
   { id: "automations", label: "Automations", icon: "sparkle" },
   { id: "obligations", label: "Promise to payment", icon: "currency" },
-  { id: "archive", label: "Archive", icon: "archive" },
 ] as const;
 
 function App(props: RouteSectionProps) {
@@ -44,10 +47,11 @@ function AppShell(props: ParentProps) {
     localStorage.getItem("life-os-inbox-collapsed") !== "true";
   const [inboxOpen, toggleInbox] = createSignal(desktopInboxOpen);
   const [searchOpen, setSearchOpen] = createSignal(false);
+  const [moreOpen, setMoreOpen] = createSignal(false);
   const location = useLocation();
   const itemPanel = useItemPanelRoute();
   const inspectorOpen = () => !!location.query.mode;
-  const navActive = (id: (typeof navItems)[number]["id"]) =>
+  const navActive = (id: (typeof navItems)[number]["id"] | (typeof moreItems)[number]["id"]) =>
     id === "areas"
       ? location.pathname.startsWith("/app/areas")
       : location.pathname === `/app/${id}`;
@@ -114,6 +118,7 @@ function AppShell(props: ParentProps) {
         openSearch();
       }
       if (event.key === "Escape" && searchOpen()) closeSearch();
+      if (event.key === "Escape" && moreOpen()) setMoreOpen(false);
     };
     window.addEventListener("keydown", openInbox);
     const updateShellMode = (event: MediaQueryListEvent) =>
@@ -159,7 +164,17 @@ function AppShell(props: ParentProps) {
                 </a>
               )}
             </For>
+            <button class={["nav-button", { active: moreOpen() || moreItems.some(item => navActive(item.id)) }]} type="button" aria-label="More" title="More" aria-expanded={moreOpen()} aria-controls="more-navigation" onClick={() => setMoreOpen(!moreOpen())}>
+              <Icon name="more" size={22} />
+            </button>
           </nav>
+          <Show when={moreOpen()}>
+            <button class="more-nav-backdrop" type="button" aria-label="Close More menu" onClick={() => setMoreOpen(false)} />
+            <div class="more-nav-menu" id="more-navigation" aria-label="More navigation">
+              <strong>More</strong>
+              <For each={moreItems}>{item => <a class={{ selected: navActive(item.id) }} href={`/app/${item.id}`} onClick={() => { setMoreOpen(false); closeInboxForNavigation(); }}><Icon name={item.icon} size={18} /><span>{item.label}</span></a>}</For>
+            </div>
+          </Show>
           <div class="sidebar-footer">
             <UpdateButton />
             <WorkspaceMenu />
