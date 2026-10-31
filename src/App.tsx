@@ -37,7 +37,7 @@ function App(props: RouteSectionProps) {
 }
 
 function AppShell(props: ParentProps) {
-  const desktopMedia = window.matchMedia("(min-width: 681px)");
+  const desktopMedia = window.matchMedia("(min-width: 1101px)");
   const [desktopShell, setDesktopShell] = createSignal(desktopMedia.matches);
   const desktopInboxOpen =
     desktopMedia.matches &&
@@ -68,7 +68,7 @@ function AppShell(props: ParentProps) {
     );
   };
   const openSearch = () => {
-    if (window.matchMedia("(max-width: 680px)").matches) closeInbox(false);
+    if (!desktopShell()) closeInbox(false);
     setSearchOpen(true);
     queueMicrotask(() =>
       document.querySelector<HTMLInputElement>("#global-search-input")?.focus(),
@@ -79,7 +79,7 @@ function AppShell(props: ParentProps) {
     if (
       open &&
       inspectorOpen() &&
-      window.matchMedia("(max-width: 680px)").matches
+      !desktopShell()
     ) {
       itemPanel.close();
     }

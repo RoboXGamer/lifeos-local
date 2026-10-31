@@ -633,7 +633,7 @@
   }
 }
 
-@media (min-width: 681px) {
+@media (min-width: 1101px) {
   .dialog-backdrop {
     position: relative;
     z-index: auto;

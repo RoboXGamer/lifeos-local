@@ -1,5 +1,5 @@
 .automation-help { max-width: 76ch; font-size: .87rem; }
-.automation-recipes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.automation-recipes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 10px; }
 .automation-recipes > button { display: grid; gap: 5px; text-align: left; }
 .automation-recipes small { color: hsl(225 12% 43%); }
 .automation-preview { display: grid; gap: 9px; padding: 14px; background: hsl(248 75% 97%); border-radius: 10px; }
@@ -8,3 +8,4 @@
 .automation-run small { display: block; margin: 4px 0 8px; }
 .automation-run p { font-size: .86rem; }
 @media (max-width: 760px) { .automation-recipes { grid-template-columns: 1fr; } .automation-run { flex-direction: column; } }
+@container (max-width: 500px) { .automation-run { flex-direction: column; } }

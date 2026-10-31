@@ -14,7 +14,7 @@
 .attention-card p { font-size: .78rem; }
 .attention-detail { white-space: pre-line; }
 .attention-source { font-size: .72rem; overflow-wrap: anywhere; margin-top: auto; }
-.attention-actions { display: flex; gap: 7px; }
+.attention-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .today-attention button { border: 1px solid var(--color-border); border-radius: 7px; padding: 6px 9px; background: white; cursor: pointer; font-size: .73rem; }
 .today-attention button:hover { background: hsl(248 70% 97%); }
 .today-attention button:disabled { cursor: default; opacity: .5; }
@@ -27,3 +27,4 @@
 .attention-history li { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: .75rem; }
 .attention-history small { display: block; color: hsl(225 12% 43%); font-size: .65rem; }
 @media(max-width: 680px) { .today-attention > header { align-items: start; flex-direction: column; } .today-attention { padding: 13px; } }
+@container (max-width: 500px) { .today-attention > header { align-items: start; flex-wrap: wrap; } }

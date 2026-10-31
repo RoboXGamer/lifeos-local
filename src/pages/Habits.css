@@ -1,5 +1,6 @@
 .habits-details,.habits-goals { display: grid; gap: 16px; min-width: 0; }
-.habits-heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.habits-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: start; gap: 12px; }
+.habits-heading > div { min-width: 0; }
 .habits-numbers { display: flex; flex-wrap: wrap; gap: 28px; }
 .habits-numbers div,.habit-activity div { display: grid; gap: 4px; }
 .habits-form { display: grid; gap: 12px; }
