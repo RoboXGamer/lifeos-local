@@ -50,15 +50,12 @@ pub fn run() {
             let port = info["port"].as_u64().ok_or("Missing service port")?;
             let token = info["token"].as_str().ok_or("Missing service token")?;
             let url = format!("http://127.0.0.1:{port}/auth?token={token}").parse()?;
-            app.get_webview_window("main")
-                .ok_or("Missing main window")?
-                .navigate(url)?;
-            Ok(())
-        })
-        .on_page_load(|webview, payload| {
-            if std::env::var_os("LIFEOS_TEST_HIDDEN").is_none() && payload.url().host_str() == Some("127.0.0.1") && payload.url().path() == "/" {
-                let _ = webview.show();
+            let window = app.get_webview_window("main").ok_or("Missing main window")?;
+            window.navigate(url)?;
+            if std::env::var_os("LIFEOS_TEST_HIDDEN").is_none() {
+                window.show()?;
             }
+            Ok(())
         })
         .run(context)
         .expect("error while running tauri application");
