@@ -213,6 +213,8 @@ export default function AreaDetail() {
           area={area() ?? null}
           onClose={() => setEditingArea(false)}
           onSave={(input) => void saveArea(input)}
+          error={error()}
+          busy={updateAreaMutation.pending()}
         />
       </Show>
     </section>

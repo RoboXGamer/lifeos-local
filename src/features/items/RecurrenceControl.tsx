@@ -17,7 +17,15 @@ export function RecurrenceControl(props: { item: ItemView }) {
   const [snooze, setSnooze] = createSignal("");
   const [message, setMessage] = createSignal("");
   const [busy, setBusy] = createSignal(false);
+  const [dirty, setDirty] = createSignal(false);
+  let loadedItemId = props.item._id;
+  let draftVersion = 0;
+  const markDirty = () => { draftVersion++; setDirty(true); };
   createEffect(() => `${props.item._id}:${schedule()?.updatedAt ?? 0}`, () => {
+    const itemChanged = loadedItemId !== props.item._id;
+    loadedItemId = props.item._id;
+    if (!itemChanged && dirty()) return;
+    setDirty(false);
     const definition = schedule()?.definition;
     setFrequency(definition?.frequency ?? "weekly"); setMode(definition?.mode ?? "calendar"); setInterval(definition?.interval ?? 1);
     setWeekdays(definition?.weekdays ?? [1, 2, 3, 4, 5]); setStartDate(definition?.startDate ?? props.item.dueDate ?? localDateKey());
@@ -37,9 +45,9 @@ export function RecurrenceControl(props: { item: ItemView }) {
   return <details class="productivity-control">
     <summary>{schedule() ? `Repeats · ${schedule()!.state}` : "Repeat this item"}</summary>
     <Show when={schedule()}>{s => <><p>{recurrenceLabel(s().definition)}</p><small>Next: {s().nextDate ?? "after the outstanding occurrence is completed"} · {s().definition.timezone}</small><Show when={s().lastError}><p role="alert">{s().lastError}</p></Show></>}</Show>
-    <form onSubmit={e => {
-      e.preventDefault(); const current = schedule();
-      void perform(() => api.recurrence.save({ workspaceId: props.item.workspaceId, itemId: props.item._id, scheduleId: current?._id, definition: { frequency: frequency(), mode: mode(), interval: interval(), weekdays: weekdays(), startDate: startDate(), endDate: endDate() || null, timezone: timezone() } }), "Schedule saved. Completion history stays with the schedule.");
+    <form onInput={markDirty} onChange={markDirty} onSubmit={e => {
+      e.preventDefault(); const current = schedule(); const submittedVersion = draftVersion;
+      void perform(async () => { await api.recurrence.save({ workspaceId: props.item.workspaceId, itemId: props.item._id, scheduleId: current?._id, definition: { frequency: frequency(), mode: mode(), interval: interval(), weekdays: weekdays(), startDate: startDate(), endDate: endDate() || null, timezone: timezone() } }); if (draftVersion === submittedVersion) setDirty(false); }, "Schedule saved. Completion history stays with the schedule.");
     }}>
       <label>Repeat<select value={frequency()} onChange={e => setFrequency(e.currentTarget.value as RecurrenceDefinition["frequency"])}><option value="daily">Daily</option><option value="weekdays">Selected weekdays</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="interval">Every N days</option></select></label>
       <Show when={frequency() !== "daily" && frequency() !== "weekdays"}><label>Every<input type="number" min={1} max={365} required value={interval()} onInput={e => setInterval(Number(e.currentTarget.value))} /></label></Show>

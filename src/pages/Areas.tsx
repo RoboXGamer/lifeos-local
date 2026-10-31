@@ -9,7 +9,6 @@ import {
   untrack,
 } from "solid-js";
 import { Portal } from "@solidjs/web";
-import { nanoid } from "nanoid";
 import type { Doc, Id } from "../local/types";
 import { api } from "../local/api";
 import { Icon, type IconName } from "../Icon";
@@ -77,49 +76,33 @@ export default function Areas() {
 
   const recordFailure = (reason: unknown) => setError(toError(reason).message);
 
-  const createArea = action(function* (input: AreaInput) {
+  const createArea = async (input: AreaInput) => {
     const workspaceId = activeWorkspaceId();
-    if (!workspaceId) return;
+    if (!workspaceId) { setError("Choose a Workspace first."); return false; }
     setError(null);
-    const now = Date.now();
-    const tempId = `temp-${nanoid()}` as Id<"areas">;
-    setAreas((draft) => {
-      draft.push({
-        _id: tempId,
-        _creationTime: now,
-        workspaceId,
-        name: input.name,
-        description: input.description,
-        icon: input.icon,
-        color: input.color,
-        archived: false,
-        createdAt: now,
-        updatedAt: now,
-      });
-    });
     try {
-      yield createAreaMutation({ workspaceId, ...input });
+      await createAreaMutation({ workspaceId, ...input });
+      return true;
     } catch (reason) {
       recordFailure(reason);
+      return false;
     }
-  });
+  };
 
-  const updateArea = action(function* (areaId: Id<"areas">, input: AreaInput) {
+  const updateArea = async (areaId: Id<"areas">, input: AreaInput) => {
     setError(null);
     const expectedUpdatedAt = areas.find(
       (area) => area._id === areaId,
     )?.updatedAt;
-    if (expectedUpdatedAt === undefined) return;
-    setAreas((draft) => {
-      const area = draft.find((item) => item._id === areaId);
-      if (area) Object.assign(area, input, { updatedAt: Date.now() });
-    });
+    if (expectedUpdatedAt === undefined) { setError("Area not found."); return false; }
     try {
-      yield updateAreaMutation({ areaId, expectedUpdatedAt, ...input });
+      await updateAreaMutation({ areaId, expectedUpdatedAt, ...input });
+      return true;
     } catch (reason) {
       recordFailure(reason);
+      return false;
     }
-  });
+  };
 
   const archiveArea = action(function* (areaId: Id<"areas">) {
     setError(null);
@@ -131,11 +114,10 @@ export default function Areas() {
     }
   });
 
-  const saveArea = (input: AreaInput) => {
+  const saveArea = async (input: AreaInput) => {
     const current = editor();
-    if (current === "new") createArea(input);
-    else if (current) updateArea(current._id, input);
-    queueMicrotask(() => setEditor(null));
+    const saved = current === "new" ? await createArea(input) : current ? await updateArea(current._id, input) : false;
+    if (saved) setEditor(null);
   };
 
   const openEditor = (value: Doc<"areas"> | "new") => {
@@ -309,6 +291,8 @@ export default function Areas() {
             area={value === "new" ? null : (value as Doc<"areas">)}
             onClose={() => setEditor(null)}
             onSave={saveArea}
+            error={error()}
+            busy={createAreaMutation.pending() || updateAreaMutation.pending()}
           />
         )}
       </Show>
@@ -319,20 +303,25 @@ export default function Areas() {
 export function AreaEditor(props: {
   area: Doc<"areas"> | null;
   onClose: () => void;
-  onSave: (input: AreaInput) => void;
+  onSave: (input: AreaInput) => void | Promise<void>;
+  error?: string | null;
+  busy?: boolean;
 }) {
   const mount = document.getElementById("area-inspector-host");
   const initialArea = untrack(() => props.area);
+  const [name, setName] = createSignal(initialArea?.name ?? "");
+  const [description, setDescription] = createSignal(initialArea?.description ?? "");
   const [icon, setIcon] = createSignal<IconName>(
     (initialArea?.icon as IconName) ?? "folder",
   );
   const [color, setColor] = createSignal(initialArea?.color ?? areaColors[0]);
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
+    if (props.busy) return;
     const data = new FormData(event.currentTarget as HTMLFormElement);
     props.onSave({
-      name: data.get("name")?.toString().trim() ?? "",
-      description: data.get("description")?.toString().trim() || undefined,
+      name: name().trim(),
+      description: description().trim() || undefined,
       icon: data.get("icon")?.toString() ?? "folder",
       color: data.get("color")?.toString() ?? "#5a45e5",
     });
@@ -345,7 +334,7 @@ export function AreaEditor(props: {
       <div
         class="dialog-backdrop"
         onMouseDown={(event) => {
-          if (event.target === event.currentTarget) props.onClose();
+          if (!props.busy && event.target === event.currentTarget) props.onClose();
         }}
       >
         <section class="area-dialog" role="dialog" aria-modal="true">
@@ -359,16 +348,19 @@ export function AreaEditor(props: {
                 <p>Give this part of life a clear identity.</p>
               </div>
             </div>
-            <button type="button" aria-label="Close" onClick={props.onClose}>
+            <button type="button" aria-label="Close" disabled={props.busy} onClick={props.onClose}>
               <Icon name="close" size={18} />
             </button>
           </header>
           <form onSubmit={submit}>
+            <Show when={props.error}><p class="areas-error" role="alert">{props.error}</p></Show>
             <label>
               <span>Name</span>
               <input
                 name="name"
-                value={props.area?.name ?? ""}
+                disabled={props.busy}
+                value={name()}
+                onInput={(event) => setName(event.currentTarget.value)}
                 maxlength="80"
                 autofocus
                 required
@@ -378,14 +370,15 @@ export function AreaEditor(props: {
               <span>Description</span>
               <textarea
                 name="description"
+                disabled={props.busy}
                 rows="3"
                 maxlength="5000"
                 placeholder="What belongs here?"
-              >
-                {props.area?.description ?? ""}
-              </textarea>
+                value={description()}
+                onInput={(event) => setDescription(event.currentTarget.value)}
+              />
             </label>
-            <fieldset class="area-choice-field">
+            <fieldset class="area-choice-field" disabled={props.busy}>
               <legend>Icon</legend>
               <input type="hidden" name="icon" value={icon()} />
               <div class="area-icon-grid">
@@ -403,7 +396,7 @@ export function AreaEditor(props: {
                 </For>
               </div>
             </fieldset>
-            <fieldset class="area-choice-field">
+            <fieldset class="area-choice-field" disabled={props.busy}>
               <legend>Color</legend>
               <input type="hidden" name="color" value={color()} />
               <div class="area-color-grid">
@@ -429,11 +422,11 @@ export function AreaEditor(props: {
               </div>
             </fieldset>
             <footer>
-              <button type="button" onClick={props.onClose}>
+              <button type="button" disabled={props.busy} onClick={props.onClose}>
                 Cancel
               </button>
-              <button type="submit" class="primary-action">
-                {props.area ? "Save changes" : "Create Area"}
+              <button type="submit" class="primary-action" disabled={props.busy}>
+                {props.busy ? "Saving…" : props.area ? "Save changes" : "Create Area"}
               </button>
             </footer>
           </form>

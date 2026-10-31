@@ -19,10 +19,17 @@ export default function Templates() {
   const [startDate, setStartDate] = createSignal(localDateKey());
   const [areaId, setAreaId] = createSignal("");
   const [variables, setVariables] = createSignal<Record<string, string>>({});
-  const [editor, setEditor] = createSignal("");
+  const [editor, setEditor] = createSignal<string | null>(null);
   const [message, setMessage] = createSignal("");
   const [busy, setBusy] = createSignal(false);
-  createEffect(workspaceId, () => { setSelectedId(""); setAreaId(""); setVariables({}); setEditor(""); setMessage(""); });
+  const drafts = new Map<string, { editor: string | null; variables: Record<string, string> }>();
+  createEffect(workspaceId, () => { drafts.clear(); setSelectedId(""); setAreaId(""); setVariables({}); setEditor(null); setMessage(""); });
+  const selectTemplate = (id: string) => {
+    const previous = selected()?._id;
+    if (previous) drafts.set(previous, { editor: editor(), variables: { ...variables() } });
+    const draft = drafts.get(id);
+    setSelectedId(id); setEditor(draft?.editor ?? null); setVariables(draft?.variables ?? {}); setMessage("");
+  };
   const request = () => ({ workspaceId: workspaceId(), templateId: selected()._id, startDate: startDate(), areaId: (areaId() || null) as Id<"areas"> | null, variables: variables() });
   const preview = createMemo(() => {
     try { return { value: api.templates.preview(request()), error: "" }; }
@@ -44,11 +51,11 @@ export default function Templates() {
     <div class="productivity-layout">
       <aside class="productivity-list template-library" aria-label="Template library">
         <label class="template-search"><span>Search templates</span><input type="search" placeholder="Search templates…" value={search()} onInput={e => setSearch(e.currentTarget.value)} /></label>
-        <For each={templates().filter(t => t.name.toLowerCase().includes(search().trim().toLowerCase()))} keyed={t => t._id} fallback={<p>No templates match your search.</p>}>{t => <button class={{ selected: selected()._id === t()._id }} onClick={() => { setSelectedId(t()._id); setEditor(""); setVariables({}); setMessage(""); }}><strong>{t().name}</strong><small>{t().definition.entries.length} items · {t().builtin ? "Starter" : `Version ${t().version}`}</small></button>}</For>
+        <For each={templates().filter(t => t.name.toLowerCase().includes(search().trim().toLowerCase()))} keyed={t => t._id} fallback={<p>No templates match your search.</p>}>{t => <button disabled={busy()} class={{ selected: selected()._id === t()._id }} onClick={() => selectTemplate(t()._id)}><strong>{t().name}</strong><small>{t().definition.entries.length} items · {t().builtin ? "Starter" : `Version ${t().version}`}</small></button>}</For>
         <label class="productivity-import">Import template<input type="file" accept="application/json,.json" disabled={busy()} onChange={event => {
           const file = event.currentTarget.files?.[0]; if (!file) return;
           const destination = workspaceId();
-          void perform(async () => { if (file.size > 500000) throw new Error("Template files must be under 500 KB."); const definition = templateSchema.parse(JSON.parse(await file.text())); const id = await api.templates.save({ workspaceId: destination, definition }); if (workspaceId() === destination) setSelectedId(id); }, "Template imported.");
+          void perform(async () => { if (file.size > 500000) throw new Error("Template files must be under 500 KB."); const definition = templateSchema.parse(JSON.parse(await file.text())); const id = await api.templates.save({ workspaceId: destination, definition }); if (workspaceId() === destination) selectTemplate(id); }, "Template imported.");
           event.currentTarget.value = "";
         }} /></label>
       </aside>
@@ -61,8 +68,8 @@ export default function Templates() {
         </div>
         <h4 class="template-preview-heading">Preview · {selected().definition.entries.length} items</h4>
         <Show when={preview().value} fallback={<p>{preview().error}</p>}>{value => <ol class="productivity-preview"><For each={value().items}>{item => <li><strong>{item.title}</strong><small>{item.type}{item.dueDate ? ` · ${item.dueDate}` : ""}{item.amount !== null ? ` · ${item.amount} (${item.financialState})` : ""}</small></li>}</For></ol>}</Show>
-        <div class="productivity-actions"><button class="primary-action" disabled={busy() || !preview().value} onClick={() => void perform(async () => { const id = await api.templates.apply(request()); panel.openItem(id); }, "Template created. Your items are independent of the template.")}>{busy() ? "Working…" : "Use this template"}</button><button onClick={exportTemplate}>Export</button><button disabled={busy()} onClick={() => void perform(async () => { const definition = { ...selected().definition, name: `${selected().name.slice(0, 70)} copy` }; setSelectedId(await api.templates.save({ workspaceId: workspaceId(), definition })); }, "Template duplicated.")}>Duplicate</button></div>
-        <details class="productivity-editor"><summary>Edit template structure</summary><p>Use {"{{client}}"} or {"{{project}}"} in titles and notes. Dates are offsets from the start date. The first entry is the parent.</p><textarea aria-label="Template definition" rows={14} value={editor() || JSON.stringify(selected().definition, null, 2)} onInput={e => setEditor(e.currentTarget.value)} /><div class="productivity-actions"><button disabled={busy()} onClick={() => void perform(async () => { const template = selected(); const definition = templateSchema.parse(JSON.parse(editor() || JSON.stringify(template.definition))); setSelectedId(await api.templates.save({ workspaceId: workspaceId(), templateId: template._id, expectedVersion: template.version, definition })); setEditor(""); }, "Template saved. Existing items were not changed.")}>{selected().builtin ? "Save as my template" : "Save changes"}</button><Show when={!selected().builtin}><button disabled={busy()} onClick={() => void perform(async () => { await api.templates.remove({ workspaceId: workspaceId(), templateId: selected()._id }); setSelectedId(""); }, "Template deleted. Created items remain.")}>Delete template</button></Show></div></details>
+        <div class="productivity-actions"><button class="primary-action" disabled={busy() || !preview().value} onClick={() => void perform(async () => { const id = await api.templates.apply(request()); panel.openItem(id); }, "Template created. Your items are independent of the template.")}>{busy() ? "Working…" : "Use this template"}</button><button onClick={exportTemplate}>Export</button><button disabled={busy()} onClick={() => void perform(async () => { const definition = { ...selected().definition, name: `${selected().name.slice(0, 70)} copy` }; selectTemplate(await api.templates.save({ workspaceId: workspaceId(), definition })); }, "Template duplicated.")}>Duplicate</button></div>
+        <details class="productivity-editor"><summary>Edit template structure</summary><p>Use {"{{client}}"} or {"{{project}}"} in titles and notes. Dates are offsets from the start date. The first entry is the parent.</p><textarea disabled={busy()} aria-label="Template definition" rows={14} value={editor() ?? JSON.stringify(selected().definition, null, 2)} onInput={e => setEditor(e.currentTarget.value)} /><div class="productivity-actions"><button disabled={busy()} onClick={() => void perform(async () => { const template = selected(); const definition = templateSchema.parse(JSON.parse(editor() ?? JSON.stringify(template.definition))); const id = await api.templates.save({ workspaceId: workspaceId(), templateId: template._id, expectedVersion: template.version, definition }); drafts.delete(template._id); setSelectedId(id); setEditor(null); }, "Template saved. Existing items were not changed.")}>{selected().builtin ? "Save as my template" : "Save changes"}</button><Show when={!selected().builtin}><button disabled={busy()} onClick={() => void perform(async () => { const id = selected()._id; await api.templates.remove({ workspaceId: workspaceId(), templateId: id }); drafts.delete(id); setSelectedId(""); setEditor(null); setVariables({}); }, "Template deleted. Created items remain.")}>Delete template</button></Show></div></details>
       </div>
     </div>
   </section>;

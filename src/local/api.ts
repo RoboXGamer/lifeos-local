@@ -10,6 +10,7 @@ import { createObligations, listEngagements, obligationDetails, obsoleteObligati
 import { createAttention, buildAttention } from "./attention";
 import { createHabits, listHabits, listGoals, listActivities, habitDetails, goalDetails } from "./habits";
 import { readPersistedItem, type ItemProvenance } from "./item-events";
+import { toTransportValue } from "./transport";
 import type {
   AreaDoc,
   Id,
@@ -926,7 +927,7 @@ function transactional<A, R>(name: string, mutation: (args: A) => Promise<R>): (
         return result;
       }, reload);
     }
-    const response = await remoteMutation(name, args);
+    const response = await remoteMutation(name, toTransportValue(args));
     applySnapshot(response);
     return response.result as R;
   };

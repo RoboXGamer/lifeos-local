@@ -7,7 +7,6 @@ import {
   type Accessor,
   type ParentProps,
 } from "solid-js";
-import { nanoid } from "nanoid";
 import type { Doc, Id } from "../../local/types";
 import { api } from "../../local/api";
 import { createMutation, createQuery, toError } from "../../local";
@@ -30,8 +29,8 @@ interface WorkspaceModel {
   activeWorkspace: Accessor<WorkspaceSummary | undefined>;
   error: Accessor<string | null>;
   clearError: () => void;
-  createWorkspace: (name: string) => void;
-  renameWorkspace: (workspaceId: Id<"workspaces">, name: string) => void;
+  createWorkspace: (name: string) => Promise<boolean>;
+  renameWorkspace: (workspaceId: Id<"workspaces">, name: string) => Promise<boolean>;
   selectWorkspace: (workspaceId: Id<"workspaces">) => void;
   archiveWorkspace: (workspaceId: Id<"workspaces">) => void;
   restoreWorkspace: (workspaceId: Id<"workspaces">) => void;
@@ -77,22 +76,14 @@ export function WorkspaceProvider(props: ParentProps) {
 
   const createWorkspace = action(function* (name: string) {
     const cleanName = name.trim();
-    if (!cleanName) return;
+    if (!cleanName) { setError("Enter a Workspace name."); return false; }
     setError(null);
-    const now = Date.now();
-    const tempId = `temp-${nanoid()}` as Id<"workspaces">;
-    setState((draft) => {
-      draft.workspaces.push({
-        id: tempId,
-        name: cleanName,
-        createdAt: now,
-        updatedAt: now,
-      });
-    });
     try {
       yield createWorkspaceMutation({ name: cleanName });
+      return true;
     } catch (reason) {
       recordFailure(reason);
+      return false;
     }
   });
 
@@ -101,29 +92,22 @@ export function WorkspaceProvider(props: ParentProps) {
     name: string,
   ) {
     const cleanName = name.trim();
-    if (!cleanName) return;
+    if (!cleanName) { setError("Enter a Workspace name."); return false; }
     setError(null);
     const expectedUpdatedAt = state.workspaces.find(
       (workspace) => workspace.id === workspaceId,
     )?.updatedAt;
-    if (expectedUpdatedAt === undefined) return;
-    setState((draft) => {
-      const workspace = draft.workspaces.find(
-        (item) => item.id === workspaceId,
-      );
-      if (workspace) {
-        workspace.name = cleanName;
-        workspace.updatedAt = Date.now();
-      }
-    });
+    if (expectedUpdatedAt === undefined) { setError("Workspace not found."); return false; }
     try {
       yield renameWorkspaceMutation({
         workspaceId,
         name: cleanName,
         expectedUpdatedAt,
       });
+      return true;
     } catch (reason) {
       recordFailure(reason);
+      return false;
     }
   });
 

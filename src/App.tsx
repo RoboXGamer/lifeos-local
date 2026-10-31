@@ -164,7 +164,7 @@ function AppShell(props: ParentProps) {
                 </a>
               )}
             </For>
-            <button class={["nav-button", { active: moreOpen() || moreItems.some(item => navActive(item.id)) }]} type="button" aria-label="More" title="More" aria-expanded={moreOpen()} aria-controls="more-navigation" onClick={() => setMoreOpen(!moreOpen())}>
+            <button class={["nav-button", { active: moreOpen() || moreItems.some(item => navActive(item.id)) }]} type="button" aria-label="More" title="More" aria-expanded={moreOpen() ? "true" : "false"} aria-controls="more-navigation" onClick={() => setMoreOpen(!moreOpen())}>
               <Icon name="more" size={22} />
             </button>
           </nav>

@@ -10,26 +10,24 @@ export function WorkspaceMenu() {
   const [open, setOpen] = createSignal(false);
   const [creating, setCreating] = createSignal(false);
   const [renaming, setRenaming] = createSignal(false);
+  const [nameDraft, setNameDraft] = createSignal("");
+  const [saving, setSaving] = createSignal(false);
 
-  const submitCreate = (event: SubmitEvent) => {
+  const submitCreate = async (event: SubmitEvent) => {
     event.preventDefault();
-    const form = event.currentTarget as HTMLFormElement;
-    const name = new FormData(form).get("workspaceName")?.toString() ?? "";
-    model.createWorkspace(name);
-    form.reset();
-    setCreating(false);
+    if (saving()) return;
+    setSaving(true);
+    try { if (await model.createWorkspace(nameDraft())) { setNameDraft(""); setCreating(false); } }
+    finally { setSaving(false); }
   };
 
-  const submitRename = (event: SubmitEvent) => {
+  const submitRename = async (event: SubmitEvent) => {
     event.preventDefault();
     const workspace = model.activeWorkspace();
-    if (!workspace) return;
-    const name =
-      new FormData(event.currentTarget as HTMLFormElement)
-        .get("workspaceName")
-        ?.toString() ?? "";
-    model.renameWorkspace(workspace.id, name);
-    setRenaming(false);
+    if (!workspace || saving()) return;
+    setSaving(true);
+    try { if (await model.renameWorkspace(workspace.id, nameDraft())) { setNameDraft(""); setRenaming(false); } }
+    finally { setSaving(false); }
   };
 
   return (
@@ -77,6 +75,7 @@ export function WorkspaceMenu() {
               {(workspace) => (
                 <button
                   type="button"
+                  disabled={saving()}
                   class={{
                     selected: workspace.id === model.state.activeWorkspaceId,
                   }}
@@ -105,11 +104,14 @@ export function WorkspaceMenu() {
                 name="workspaceName"
                 aria-label="Workspace name"
                 placeholder="Workspace name"
+                value={nameDraft()}
+                disabled={saving()}
+                onInput={(event) => setNameDraft(event.currentTarget.value)}
                 maxlength="80"
                 autofocus
                 required
               />
-              <button type="submit">Create</button>
+              <button type="submit" disabled={saving()}>{saving() ? "Saving…" : "Create"}</button>
             </form>
           </Show>
 
@@ -118,12 +120,14 @@ export function WorkspaceMenu() {
               <input
                 name="workspaceName"
                 aria-label="New Workspace name"
-                value={model.activeWorkspace()?.name}
+                value={nameDraft()}
+                disabled={saving()}
+                onInput={(event) => setNameDraft(event.currentTarget.value)}
                 maxlength="80"
                 autofocus
                 required
               />
-              <button type="submit">Save</button>
+              <button type="submit" disabled={saving()}>{saving() ? "Saving…" : "Save"}</button>
             </form>
           </Show>
 
@@ -131,14 +135,16 @@ export function WorkspaceMenu() {
           <footer>
             <button
               type="button"
-              onClick={() => setCreating((value) => !value)}
+              disabled={saving()}
+              onClick={() => { setNameDraft(""); setRenaming(false); setCreating((value) => !value); }}
             >
               <Icon name="plus" size={16} />
               New
             </button>
             <button
               type="button"
-              onClick={() => setRenaming((value) => !value)}
+              disabled={saving()}
+              onClick={() => { setNameDraft(model.activeWorkspace()?.name ?? ""); setCreating(false); setRenaming((value) => !value); }}
             >
               <Icon name="edit" size={16} />
               Rename
