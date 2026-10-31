@@ -17,6 +17,10 @@ pub fn run() {
             let resource_dir = app.path().resource_dir()?;
             let data_dir = app.path().app_config_dir()?;
             #[cfg(debug_assertions)]
+            let data_dir = std::env::var_os("LIFEOS_DEV_DATA_DIR")
+                .map(std::path::PathBuf::from)
+                .unwrap_or(data_dir);
+            #[cfg(debug_assertions)]
             let executable = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("binaries")
                 .join(format!(
@@ -31,6 +35,16 @@ pub fn run() {
                 std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/client");
             #[cfg(not(debug_assertions))]
             let client_dir = resource_dir.join("lifeos-client");
+            #[cfg(debug_assertions)]
+            let mut command = if std::env::var_os("LIFEOS_DEV_SERVICE_URL").is_some() {
+                let entry = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../server/launcher.mjs");
+                let mut node = Command::new("node");
+                node.arg(&entry).env("LIFEOS_DEV_ENTRY", entry);
+                node
+            } else {
+                Command::new(executable)
+            };
+            #[cfg(not(debug_assertions))]
             let mut command = Command::new(executable);
             command
                 .arg("connection")
@@ -49,7 +63,15 @@ pub fn run() {
             let info: serde_json::Value = serde_json::from_slice(&output.stdout)?;
             let port = info["port"].as_u64().ok_or("Missing service port")?;
             let token = info["token"].as_str().ok_or("Missing service token")?;
-            let url = format!("http://127.0.0.1:{port}/auth?token={token}").parse()?;
+            #[cfg(debug_assertions)]
+            let origin = if std::env::var_os("LIFEOS_DEV_SERVICE_URL").is_some() {
+                "http://127.0.0.1:1420".to_string()
+            } else {
+                format!("http://127.0.0.1:{port}")
+            };
+            #[cfg(not(debug_assertions))]
+            let origin = format!("http://127.0.0.1:{port}");
+            let url = format!("{origin}/auth?token={token}").parse()?;
             let window = app.get_webview_window("main").ok_or("Missing main window")?;
             window.navigate(url)?;
             if std::env::var_os("LIFEOS_TEST_HIDDEN").is_none() {

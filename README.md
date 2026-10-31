@@ -37,11 +37,10 @@ For Windows development and MSI builds, install:
 
 ```powershell
 pnpm install --frozen-lockfile
-node scripts/build-service.mjs
-pnpm tauri dev
+pnpm dev:desktop
 ```
 
-Build the service first: the Tauri development app starts the executable from `src-tauri/binaries` and serves the built client from `dist/client`. Run the build script again after changing client or service code. `pnpm dev` alone starts Vite; it is not the complete desktop-and-service setup.
+The command builds the service, starts it if needed, and opens the desktop app with Vite live reload for interface changes. The first run may take longer while Rust compiles. It uses the same local data and service as the installed app. If a service is already running, it is reused; stop it with `lifeos stop` (or `node server/launcher.mjs stop` from this checkout), then restart `pnpm dev:desktop` to pick up backend changes. The command does not build or install an MSI. `pnpm dev` alone does not start the complete desktop-and-service setup.
 
 ## Use the CLI
 

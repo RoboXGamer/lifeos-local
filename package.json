@@ -6,6 +6,7 @@
   "packageManager": "pnpm@12.4.1",
   "scripts": {
     "dev": "vite",
+    "dev:desktop": "node scripts/dev-desktop.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
