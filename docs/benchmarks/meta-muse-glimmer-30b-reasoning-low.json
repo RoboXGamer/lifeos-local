@@ -1,0 +1,242 @@
+{
+  "model": "meta/muse-glimmer-30b",
+  "reasoning_requested": {
+    "reasoning_strength": "low"
+  },
+  "duration_seconds": 56.490606599953026,
+  "usage": {
+    "prompt_tokens": 1514,
+    "completion_tokens": 1566,
+    "total_tokens": 3080,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    }
+  },
+  "finish_reason": "stop",
+  "checks": [
+    {
+      "id": "new_quote_task",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_paid_no_currency",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_quote_not_paid",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_two_people",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_future_unpaid",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_refund",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_other_waiting",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_neutral",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_task_no_date",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_received_unknown_total",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_hindi_payment",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    },
+    {
+      "id": "new_no_amount",
+      "checks": {
+        "unique_result": false
+      },
+      "passed": false
+    }
+  ],
+  "response": {
+    "id": "a119608f47cab1e5",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "content": "```json\n{\n  \"results\": [\n    {\n      \"id\": \"new_quote_task\",\n      \"tasks\": [\n        {\"action\": \"call\", \"person\": \"Zoya\", \"scheduled_date\": \"2026-11-06\"}\n      ],\n      \"money\": [\n        {\"person\": \"Zoya\", \"description\": \"lighting\", \"amount\": 300000, \"currency\": \"INR\", \"state\": \"quote\"}\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_paid_no_currency\",\n      \"tasks\": [],\n      \"money\": [\n        {\"person\": \"Arjun\", \"description\": null, \"amount\": 50000, \"currency\": null, \"state\": \"paid\"}\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_quote_not_paid\",\n      \"tasks\": [],\n      \"money\": [\n        {\"person\": \"Simran\", \"description\": null, \"amount\": 35000, \"currency\": \"INR\", \"state\": \"quote\"}\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_two_people\",\n      \"tasks\": [],\n      \"money\": [\n        {\"person\": \"Pooja\", \"description\": \"sale\", \"amount\": 600000, \"currency\": \"INR\", \"state\": \"agreed\"},\n        {\"person\": \"Karan\", \"description\": \"venue\", \"amount\": 200000, \"currency\": \"INR\", \"state\": \"quote\"}\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_future_unpaid\",\n      \"tasks\": [],\n      \"money\": [\n        {\"person\": null, \"description\": null, \"amount\": 8000, \"currency\": \"INR\", \"state\": \"planned\"}\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_refund\",\n      \"tasks\": [],\n      \"money\": [\n        {\"person\": \"Anil\", \"description\": null, \"amount\": 4000, \"currency\": \"INR\", \"state\": \"refund\"}\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_other_waiting\",\n      \"tasks\": [],\n      \"money\": [],\n      \"waiting\": [\n        {\"person\": \"Leena\", \"action\": \"send contract\", \"scheduled_date\": \"2026-11-06\"}\n      ],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_neutral\",\n      \"tasks\": [],\n      \"money\": [],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_task_no_date\",\n      \"tasks\": [\n        {\"action\": \"talk about meeting\", \"person\": \"Farah\", \"scheduled_date\": null}\n      ],\n      \"money\": [],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_received_unknown_total\",\n      \"tasks\": [],\n      \"money\": [\n        {\"person\": \"Customer\", \"description\": null, \"amount\": 45000, \"currency\": \"INR\", \"state\": \"paid\"}\n      ],\n      \"waiting\": [],\n      \"uncertainties\": [\"final agreed price unknown\"]\n    },\n    {\n      \"id\": \"new_hindi_payment\",\n      \"tasks\": [],\n      \"money\": [\n        {\"person\": \"Ravi\", \"description\": \"advance\", \"amount\": 9000, \"currency\": \"INR\", \"state\": \"paid\"}\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_no_amount\",\n      \"tasks\": [],\n      \"money\": [\n        {\"person\": \"Nikhil\", \"description\": null, \"amount\": null, \"currency\": null, \"state\": \"agreed\"}\n      ],\n      \"waiting\": [],\n      \"uncertainties\": [\"amount not stated\"]\n    }\n  ]\n}\n```",
+          "role": "assistant",
+          "reasoning_content": "You convert personal captures... Return only valid JSON.\n\nProcess 12.\n\n1 new_quote_task: Zoya ne lighting ke liye ₹3 lakh quote diya; Friday ko Zoya ko call karunga.\ntasks: call Zoya scheduled 2026-11-06\nmoney: person Zoya description lighting amount 300000 currency INR state quote\n\n2 new_paid_no_currency: Arjun ko maine pachaas hazaar de diye.\nPaid 50000? Currency not explicit? No ₹. So currency null. Person Arjun? Payment to Arjun. amount 50000. state paid. description null.\n\n3 new_quote_not_paid: Simran ka ₹35,000 quote hai, payment abhi nahi hui aur deal confirm nahi hai.\nmoney: Simran amount 35000 INR state quote\n\n4 new_two_people: Pooja se ₹6 lakh ki sale confirm hai. Karan ne venue ke liye ₹2 lakh ka quote diya.\nmoney: Pooja description sale amount 600000 INR state agreed\nmoney: Karan description venue amount 200000 INR state quote\n\n5 new_future_unpaid: Agle mahine plumber ko ₹8,000 dene hain; abhi tak paise nahi diye.\nmoney: person null? plumber? person null? Could be null. description null. amount 8000 INR state planned\n\n6 new_refund: Decorator Anil ne mujhe ₹4,000 refund kar diye.\nmoney: person Anil amount 4000 INR state refund\n\n7 new_other_waiting: Leena ne kaha woh Friday ko mujhe contract bhejegi; main uska wait kar raha hoon.\nwaiting: person Leena action send contract scheduled_date 2026-11-06\n\n8 new_neutral: no tasks money waiting\n\n9 new_task_no_date: Mujhe Farah se meeting ke baare mein baat karni hai.\ntasks: action? \"talk about meeting\"? Maybe \"talk about meeting\". person Farah scheduled null\n\n10 new_received_unknown_total: Customer se ₹45,000 mil gaye; final agreed price mujhe pata nahi hai.\nmoney: person Customer? description null amount 45000 INR state paid? mil gaye = received. state paid? Probably paid. Person Customer. amount 45000.\n\n11 new_hindi_payment: मैंने रवि को ₹9000 का अग्रिम भुगतान कर दिया।\nPaid advance to Ravi 9000 INR state paid description advance? \"अग्रिम भुगतान\" = advance payment. description advance. person Ravi.\n\n12 new_no_amount: Nikhil ne price confirm kiya hai par amount abhi mujhe nahi bataya.\nUncertainty: amount not stated. No money record? Price confirm but amount unknown. Maybe money with amount null? Rules: if amount not stated use null. Could create money with amount null state agreed? Price confirm implies agreed but amount unknown. Maybe uncertainty. I'd create uncertainty about amount. No money record? Might be waiting? Hmm. Could have money with amount null state agreed. Safer to put uncertainty and no money? Example: if amount not stated use null. So person Nikhil description null amount null currency null state agreed? Might be okay. Let's create money with amount null state agreed and uncertainty.\n\nReturn JSON.\n\n"
+        },
+        "finish_reason": "stop",
+        "logprobs": null
+      }
+    ],
+    "created": 1793609355,
+    "model": "meta/muse-glimmer-30b",
+    "service_tier": null,
+    "system_fingerprint": null,
+    "object": "chat.completion",
+    "usage": {
+      "prompt_tokens": 1514,
+      "completion_tokens": 1566,
+      "total_tokens": 3080,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      }
+    }
+  },
+  "strict_json_valid": false,
+  "checks_after_removing_code_fence": [
+    {
+      "id": "new_quote_task",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_paid_no_currency",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_quote_not_paid",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_two_people",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_future_unpaid",
+      "checks": {
+        "money": true,
+        "no_false_payment": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_refund",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_other_waiting",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_neutral",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_task_no_date",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_received_unknown_total",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_hindi_payment",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_no_amount",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    }
+  ]
+}

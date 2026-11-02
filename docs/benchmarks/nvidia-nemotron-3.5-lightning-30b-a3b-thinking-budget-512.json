@@ -1,0 +1,168 @@
+{
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "reasoning_requested": {
+    "enable_thinking": true
+  },
+  "reasoning_budget": 512,
+  "duration_seconds": 30.51420059998054,
+  "usage": {
+    "prompt_tokens": 1678,
+    "completion_tokens": 1490,
+    "total_tokens": 3168,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": null,
+      "audio_tokens": null,
+      "reasoning_tokens": 511,
+      "rejected_prediction_tokens": null
+    }
+  },
+  "finish_reason": "stop",
+  "checks": [
+    {
+      "id": "new_quote_task",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_paid_no_currency",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_quote_not_paid",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_two_people",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_future_unpaid",
+      "checks": {
+        "money": true,
+        "no_false_payment": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_refund",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_other_waiting",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_neutral",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_task_no_date",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_received_unknown_total",
+      "checks": {
+        "tasks": true,
+        "money": false,
+        "waiting": true
+      },
+      "passed": false
+    },
+    {
+      "id": "new_hindi_payment",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_no_amount",
+      "checks": {
+        "tasks": true,
+        "money": false,
+        "waiting": true
+      },
+      "passed": false
+    }
+  ],
+  "response": {
+    "id": "chatcmpl-9471c02c-e575-44b5-ae04-a6f9e1bf9fa8",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "content": "{\n  \"results\": [\n    {\n      \"id\": \"new_quote_task\",\n      \"tasks\": [\n        {\n          \"action\": \"call\",\n          \"person\": \"Zoya\",\n          \"scheduled_date\": \"2026-11-06\"\n        }\n      ],\n      \"money\": [\n        {\n          \"person\": \"Zoya\",\n          \"description\": \"lighting\",\n          \"amount\": 300000,\n          \"currency\": \"INR\",\n          \"state\": \"quote\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_paid_no_currency\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Arjun\",\n          \"description\": null,\n          \"amount\": 50000,\n          \"currency\": null,\n          \"state\": \"paid\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_quote_not_paid\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Simran\",\n          \"description\": null,\n          \"amount\": 35000,\n          \"currency\": \"INR\",\n          \"state\": \"quote\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_two_people\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Pooja\",\n          \"description\": \"sale\",\n          \"amount\": 600000,\n          \"currency\": \"INR\",\n          \"state\": \"agreed\"\n        },\n        {\n          \"person\": \"Karan\",\n          \"description\": null,\n          \"amount\": 200000,\n          \"currency\": \"INR\",\n          \"state\": \"quote\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_future_unpaid\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": null,\n          \"description\": null,\n          \"amount\": 8000,\n          \"currency\": \"INR\",\n          \"state\": \"planned\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_refund\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Anil\",\n          \"description\": null,\n          \"amount\": 4000,\n          \"currency\": \"INR\",\n          \"state\": \"refund\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_other_waiting\",\n      \"tasks\": [],\n      \"money\": [],\n      \"waiting\": [\n        {\n          \"person\": \"Leena\",\n          \"action\": \"send contract\",\n          \"scheduled_date\": \"2026-11-06\"\n        }\n      ],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_neutral\",\n      \"tasks\": [],\n      \"money\": [],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_task_no_date\",\n      \"tasks\": [\n        {\n          \"action\": \"talk\",\n          \"person\": \"Farah\",\n          \"scheduled_date\": null\n        }\n      ],\n      \"money\": [],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_received_unknown_total\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": null,\n          \"description\": null,\n          \"amount\": 45000,\n          \"currency\": \"INR\",\n          \"state\": \"unknown\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_hindi_payment\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Ravi\",\n          \"description\": null,\n          \"amount\": 9000,\n          \"currency\": \"INR\",\n          \"state\": \"paid\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_no_amount\",\n      \"tasks\": [],\n      \"money\": [],\n      \"waiting\": [],\n      \"uncertainties\": []\n    }\n  ]\n}",
+          "role": "assistant",
+          "reasoning_content": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User wants me to process 12 test captures.\n   - I need to convert personal captures into structured LifeOS data.\n   - Rules are provided.\n   - Reference date: Monday, 2026-11-02, Asia/Kolkata. \"Friday\" means coming Friday, 2026-11-06.\n   - I need to output only valid JSON with a specific structure.\n   - Each capture gets its own result under its ID.\n   - I must interpret English, Hindi, and Hinglish.\n   - Rules about extracting only explicit facts, tasks vs waiting, money records, Indian number conversions, currency usage, dates, uncertainties.\n\n2.  **Deconstruct Rules & apply to each capture:**\n   Let's list the 12 captures and process one by one.\n\n   **Reference:** Friday = 2026-11-06. Today is 2026-11-02 (Monday).\n\n   **Capture 1:** `new_quote_task`: Zoya ne lighting ke liye ₹3 lakh quote diya; Friday ko Zoya ko call karunga.\n   - Facts: Zoya gave ₹3 lakh quote for lighting. User will call Zoya on Friday.\n   - ₹3 lakh = 300,000.\n   - Currency: explicitly has \"₹\", so INR.\n   - Money: person Zoya, description \"lighting\", amount 300000, currency INR, state \"quote\" (since it's a quote, not agreed/paid).\n   - Tasks: action \"call\", person \"Zoya\", scheduled_date \"2026-11-06\".\n   - Waiting: none.\n   - Uncertainties: none (unless ambiguity, but seems clear).\n   - Result structure: tasks, money, waiting, uncertainties.\n\n   **Capture 2:** `new_paid_no_currency`: Arjun ko maine pachaas hazaar de diye.\n   - Facts: User gave Arjun 50,000. \"pachaas hazaar\" = 50,000 (5 hazaar = 5000, so 50 hazaar = 50,000? Wait: \"hazaar\" = 1"
+        },
+        "finish_reason": "stop",
+        "logprobs": null
+      }
+    ],
+    "created": 1793609610,
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "service_tier": null,
+    "system_fingerprint": null,
+    "object": "chat.completion",
+    "usage": {
+      "prompt_tokens": 1678,
+      "completion_tokens": 1490,
+      "total_tokens": 3168,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": null,
+        "audio_tokens": null,
+        "reasoning_tokens": 511,
+        "rejected_prediction_tokens": null
+      }
+    }
+  }
+}
