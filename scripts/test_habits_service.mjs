@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 // Run only after `node scripts/build-service.mjs`; the separate directory keeps
 // the compiled service and its SQLite profile isolated from the real app.
 const dataDir = mkdtempSync(join(tmpdir(), 'lifeos-habits-service-'));
-const exe = resolve('src-tauri/binaries/lifeos-x86_64-pc-windows-msvc.exe');
+const exe = resolve('dist/desktop-service/lifeos.exe');
 const env = { ...process.env, LIFEOS_DATA_DIR: dataDir, LIFEOS_CLIENT_DIR: resolve('dist/client'), LIFEOS_DISABLE_SCHEDULER: '1' };
 function cli(...args) {
   const result = spawnSync(exe, ['--json', ...args], { env, encoding: 'utf8', windowsHide: true, timeout: 20000 });

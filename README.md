@@ -1,8 +1,8 @@
-# LifeOS — development branch
+# LifeOS Local — Electrobun desktop port
 
 LifeOS is a personal, local-first desktop app for capturing what is on your mind and organizing the parts of life that matter to you. The desktop app and CLI use the same local service and SQLite database; an account or cloud connection is not required.
 
-This branch contains the newer local-service, CLI, and productivity work. Isolated checks verify the domain logic, original-schema migration, compiled CLI/service workflows, and both desktop/CLI capture directions. Packaged upgrades and installation on a second machine still need verification. [`main`](../../tree/main) has the earlier desktop-only version.
+This worktree brings the existing `dev` branch's Solid interface, Bun service, SQLite data model, and CLI into Electrobun. The original checkout and the Electrobun reference project are separate from this port.
 
 ## What is here
 
@@ -11,7 +11,7 @@ This branch contains the newer local-service, CLI, and productivity work. Isolat
 - Search across item titles, descriptions, types, tags, and area names.
 - Archive and restore, plus confirmation before permanent deletion.
 - A local CLI and desktop app backed by the same SQLite data and mutation logic.
-- A Windows MSI build and a local signed-update workflow.
+- A Windows setup package containing the desktop, client assets, and local service.
 - Reusable templates, recurring tasks/financial reminders, and durable automation rules.
 - Project checkpoints, source snapshots, resume briefs, and read-only repository revival reviews.
 - Reviewed client obligations, conflicting terms, invoices, partial payments/refunds, and evidence-based Today suggestions.
@@ -20,18 +20,18 @@ See [Productivity and local intelligence](docs/PRODUCTIVITY.md) for the new flow
 
 ## How it fits together
 
-The desktop is a Tauri v2 window with a Solid 2 interface. A local service serves the app and handles shared domain operations and SQLite transactions. The desktop subscribes to state through Solid server functions using `live()`, so a CLI write can reach an open window. The service listens on loopback and uses a per-session token for its API.
+The Zig desktop shell uses Electrobun and system WebView2. It starts or discovers the existing Bun service, then opens the Solid interface at the authenticated loopback URL. The service handles shared domain operations and SQLite transactions. The desktop subscribes to state through Solid server functions using `live()`, so a CLI write can reach an open window.
 
 The `lifeos` executable acts as both CLI and service launcher. It starts or discovers the service as needed, including when the desktop window is closed. Data remains on the machine; the local server is not a cloud dependency. See [CLI architecture](docs/CLI-ARCHITECTURE.md) for the design and outstanding verification work.
 
 ## Prerequisites
 
-For Windows development and MSI builds, install:
+For Windows development and packaging, install:
 
 - Node.js 22.12 or newer and pnpm (the project pins pnpm 12.4.1).
-- Rust/Cargo and the Windows prerequisites in the [Tauri setup guide](https://v2.tauri.app/start/prerequisites/).
+- Hutch on `PATH` and the Windows WebView2 runtime. Hutch resolves the Electrobun and Zig versions pinned in this worktree.
 - [Bun](https://bun.com/) to compile the service executable.
-- [uv](https://docs.astral.sh/uv/) for the Python utility scripts and local update server.
+- [uv](https://docs.astral.sh/uv/) for the Python utility scripts.
 
 ## Run the desktop app
 
@@ -40,11 +40,11 @@ pnpm install --frozen-lockfile
 pnpm dev:desktop
 ```
 
-The command builds the service, starts it if needed, and opens the desktop app with Vite live reload for interface changes. The first run may take longer while Rust compiles. It uses the same local data and service as the installed app. If a service is already running, it is reused; stop it with `lifeos stop` (or `node server/launcher.mjs stop` from this checkout), then restart `pnpm dev:desktop` to pick up backend changes. The command does not build or install an MSI. `pnpm dev` alone does not start the complete desktop-and-service setup.
+The command builds the service and desktop shell, then opens the UI with Vite live reload. It shares the installed app's local data by default. Set `LIFEOS_DEV_DATA_DIR` before launch to develop against an isolated profile. A running service is reused. To load backend changes, close the app, run `lifeos stop` for the relevant data directory, then restart development.
 
 ## Use the CLI
 
-An MSI built from this branch is configured to include `lifeos.exe`. Run it from its installation directory, or add that directory to your user `PATH`:
+The Windows package includes `lifeos.exe` under `Resources/app/lifeos-service` in the installed app directory. Run it from that folder, or add the folder to your user `PATH`.
 
 ```powershell
 lifeos help
@@ -64,7 +64,7 @@ Commands use the active workspace by default. `--json` produces machine-readable
 
 ## Data and migrations
 
-On Windows, the database is `%APPDATA%\dev.a5in.lifeos\lifeos.db`. The desktop and CLI share this file. Migrations are in [`src-tauri/migrations`](src-tauri/migrations); applied migrations are immutable, so add a new migration for schema changes.
+On Windows, the database is `%APPDATA%\dev.a5in.lifeos\lifeos.db`. The desktop and CLI share this file. Migrations are in [`server/migrations`](server/migrations). Add a new file for schema changes so applied migrations retain their checksums.
 
 ```powershell
 uv run --no-project scripts/inspect_db.py
@@ -72,13 +72,15 @@ uv run --no-project scripts/inspect_db.py
 
 Back up data you want to keep before migration or uninstall experiments. `scripts/reset-db.py` deletes the database; do not run it unless you intend to discard the local data, and stop the app and service first.
 
-## Build a Windows MSI
+## Build and run Windows Setup
 
 ```powershell
-pnpm build:msi
+pnpm package
 ```
 
-The MSI is written under `src-tauri/target/release/bundle/msi/`. The build compiles and bundles the local service and client assets. The testing MSI does not require the Tauri updater key and is unsigned unless Windows code signing is separately configured. See [Windows testing](docs/WINDOWS-TESTING.md) for WebView2, installation, and update limitations.
+Run `build/stable-win-x64/LifeOS-Setup.exe` with its neighboring `.installer` folder. To move Setup, extract all of `artifacts/win-x64-LifeOS-Setup.zip` and run the EXE from the extracted folder. For a portable run, extract `artifacts/stable-win-x64-LifeOS.tar.zst` and open `LifeOS/bin/launcher.exe` inside the extracted bundle.
+
+Close the old desktop and stop its local service before switching builds so the newly packaged service supplies the client assets.
 
 ## Checks
 
@@ -90,23 +92,33 @@ bun scripts/test_server_storage.mjs
 node scripts/test_search.mjs
 node scripts/test_live_server.mjs
 node scripts/test_productivity_service.mjs
+node scripts/test_habits_service.mjs
+pnpm package
+pnpm test:desktop
 ```
 
-The storage and live-service checks use isolated test data. `scripts/test_desktop_cli.mjs` exercises both desktop/CLI capture directions and navigation through the six productivity pages using a separate test app identifier; it requires Windows, WebView2, and the compiled service. These development checks pass; packaged installation and upgrade behavior still need a fresh end-to-end check.
+The storage, live-service, and desktop checks use isolated data. The desktop smoke test launches the extracted package and exercises capture in both directions with the CLI, plus navigation through the productivity pages.
 
-## Local updates
+## In-app updates
 
-The updater checks `http://127.0.0.1:8123/latest.json` on the same machine. Publishing requires the updater signing key outside the repository:
+Electrobun 2.0.7 provides the updater for the Zig desktop shell. Set the update host and version when packaging a release.
 
 ```powershell
-node scripts/publish-update.mjs --version 0.1.2 --notes "What changed"
-pnpm update:serve
+$env:LIFEOS_RELEASE_URL = "https://downloads.example.com/lifeos"
+$env:LIFEOS_RELEASE_VERSION = "0.1.1"
+pnpm package
 ```
 
-This is a local test pipeline, not a hosted release service. See [Updates](docs/UPDATES.md) for the signing and serving workflow.
+Upload `stable-win-x64-update.json`, `stable-win-x64-checksum.json`, the compressed app archive, and any generated patches to that directory. The Setup ZIP is for the initial install. Keep the app identifier and channel consistent across releases.
+
+In the installed app, open **More → Check for updates**, download the update, and save your work before choosing **Restart to update**. The Zig shell hands the staged update to Electrobun, stops the local service, and exits. The updated app opens the same SQLite database on restart.
+
+The update menu is available in packaged builds with a configured feed. For local testing, use a loopback HTTP feed and build with `hutch electrobun build --env=canary` after `node scripts/build-service.mjs`. Install the older canary, then serve the artifacts for the newer canary at the configured URL. Test with a disposable Windows profile or a disposable database at the default path. The Windows updater relaunch uses the normal user environment, so a session-only `LIFEOS_DATA_DIR` override can be lost on restart.
+
+Publisher-signature enforcement equivalent to the old Tauri updater, MSI distribution, and second-machine testing remain open.
 
 ## Project notes
 
 - [Milestones](plan.md) and [build journey](journey.md).
 - [CLI architecture](docs/CLI-ARCHITECTURE.md).
-- [Windows testing](docs/WINDOWS-TESTING.md) and [local updates](docs/UPDATES.md).
+- [Previous Tauri Windows testing](docs/WINDOWS-TESTING.md) and [update workflow](docs/UPDATES.md).

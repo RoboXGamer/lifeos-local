@@ -1,5 +1,5 @@
 {
-  "name": "tauri-solid-draft1",
+  "name": "lifeos-local",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -8,31 +8,26 @@
     "dev": "vite",
     "dev:desktop": "node scripts/dev-desktop.mjs",
     "build": "vite build",
+    "package": "node scripts/build-service.mjs && hutch electrobun build --env=stable && node scripts/stage-windows-installer.mjs",
     "preview": "vite preview",
+    "check": "pnpm typecheck",
     "typecheck": "tsc --noEmit",
     "test:productivity": "bun scripts/test_productivity.mjs",
-    "tauri": "tauri",
-    "build:msi": "tauri build --bundles msi --config src-tauri/tauri.msi.conf.json",
-    "update:publish": "node scripts/publish-update.mjs",
-    "update:serve": "uv run --no-project scripts/serve-updates.py src-tauri/target/release/bundle/updates 8123"
+    "test:desktop": "node scripts/test_desktop_cli.mjs"
   },
   "dependencies": {
-    "@solidjs/router": "2.0.0-next.42",
-    "@solidjs/web": "2.0.0-rc.18",
-    "@tauri-apps/api": "2.12.4",
-    "@tauri-apps/plugin-process": "^2.4.0",
-    "@tauri-apps/plugin-updater": "^2.14.0",
+    "@solidjs/router": "2.0.1",
+    "@solidjs/web": "2.0.3",
     "nanoid": "6.0.2",
-    "solid-js": "2.0.0-rc.18",
+    "solid-js": "2.0.3",
     "unpdf": "^1.9.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@solidjs/diagnostics": "2.0.0-rc.18",
-    "@solidjs/vite-plugin": "3.0.0-next.51",
-    "@tauri-apps/cli": "2.12.4",
-    "@types/node": "26.6.5",
+    "@solidjs/diagnostics": "2.0.3",
+    "@solidjs/vite-plugin": "3.0.1",
+    "@types/node": "26.6.6",
     "typescript": "7.0.2",
-    "vite": "8.3.5"
+    "vite": "8.3.8"
   }
 }

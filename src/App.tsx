@@ -4,12 +4,12 @@ import { Icon } from "./Icon";
 import { useLocation } from "@solidjs/router";
 import { WorkspaceProvider } from "./features/workspaces/context";
 import { WorkspaceMenu } from "./features/workspaces/WorkspaceMenu";
+import { UpdateControl } from "./features/updates/UpdateControl";
 import { ItemProvider } from "./features/items/context";
 import { InboxPanel } from "./features/items/InboxPanel";
 import { ItemInspector } from "./features/items/ItemInspector";
 import { SearchPanel } from "./features/items/SearchPanel";
 import { useItemPanelRoute } from "./features/items/routing";
-import { UpdateButton } from "./features/updates/UpdateButton";
 import type { RouteSectionProps } from "@solidjs/router";
 
 const navItems = [
@@ -173,10 +173,10 @@ function AppShell(props: ParentProps) {
             <div class="more-nav-menu" id="more-navigation" aria-label="More navigation">
               <strong>More</strong>
               <For each={moreItems}>{item => <a class={{ selected: navActive(item.id) }} href={`/app/${item.id}`} onClick={() => { setMoreOpen(false); closeInboxForNavigation(); }}><Icon name={item.icon} size={18} /><span>{item.label}</span></a>}</For>
+              <UpdateControl />
             </div>
           </Show>
           <div class="sidebar-footer">
-            <UpdateButton />
             <WorkspaceMenu />
           </div>
         </aside>

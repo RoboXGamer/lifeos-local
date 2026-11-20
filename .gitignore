@@ -2,9 +2,12 @@ node_modules/
 __pycache__/
 dist/
 .vite/
-src-tauri/target/
-src-tauri/binaries/
-src-tauri/gen/schemas/
+build/
+artifacts/
+.hutch/
+.cottontail-tmp/
+.zig-cache/
+zig-out/
 *.log
 .DS_Store
 Thumbs.db

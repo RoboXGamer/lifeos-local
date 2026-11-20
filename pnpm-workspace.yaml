@@ -1,0 +1,2 @@
+minimumReleaseAgeExclude:
+  - '@solidjs/router@2.0.1'

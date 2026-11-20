@@ -24,16 +24,13 @@ const serviceProxy = {
 }
 
 export default defineConfig({
-  // Classic SPA: index.html + src/index.tsx are the entry, output goes to dist/.
-  // (The old turnkey `start: true` mode emitted dist/client instead.)
-  plugins: [serviceProxy, solid({ diagnostics: true, start: { app: './src/Root.tsx', node: true, middleware: './src/server/middleware.ts' }, serverFunctions: true })],
-  // Tauri expects a fixed port and shows Rust errors itself.
+  plugins: [serviceProxy, solid({ diagnostics: true, start: { app: './src/Root.tsx', nodeServer: true, middleware: './src/server/middleware.ts' }, serverFunctions: true })],
+  // The Electrobun development shell uses this origin for live reload.
   clearScreen: false,
   server: {
     port: 1420,
     strictPort: true,
     host: '127.0.0.1',
-    watch: { ignored: ['**/src-tauri/**'] },
   },
   build: {
     target: 'esnext',

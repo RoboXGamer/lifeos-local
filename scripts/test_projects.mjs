@@ -29,7 +29,7 @@ assert(!JSON.stringify(collection).includes('PRIVATE_SOURCE_EXCLUDED'));
 assert(!existsSync(join(repo,'SCRIPT_RAN')),'Collector must never run repository scripts');
 assert((await collectProject({repositories:[join(directory,'missing')],exclusions:[],retentionDays:365}))[0].missing===1);
 
-const migrations = readdirSync('src-tauri/migrations').filter(n=>/^\d+.*\.sql$/.test(n)).sort().map(name=>[Number(name.split('_')[0]),name,readFileSync(join('src-tauri/migrations',name),'utf8')]);
+const migrations = readdirSync('server/migrations').filter(n=>/^\d+.*\.sql$/.test(n)).sort().map(name=>[Number(name.split('_')[0]),name,readFileSync(join('server/migrations',name),'utf8')]);
 const storage = openStorage(join(directory,'lifeos.db'),migrations); installStorageAdapter(storage); await ensureProfile(); setProjectCollector(collectProject);
 const workspaceId = data.profile.activeWorkspaceId;
 const input=title=>({workspaceId,title,type:'Note',status:null,priority:null,dueDate:null,amount:null,financialState:null,description:null,parentId:null,areaId:null,tags:[]});

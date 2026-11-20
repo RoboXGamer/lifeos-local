@@ -27,9 +27,12 @@ try {
 } catch {}
 
 console.log('Building the local service for desktop development...');
-const build = spawnSync('pnpm', ['build'], { cwd: root, env, stdio: 'inherit', shell: process.platform === 'win32' });
+const build = spawnSync(process.execPath, ['scripts/build-service.mjs'], { cwd: root, env, stdio: 'inherit' });
 if (build.error) throw build.error;
 if (build.status !== 0) process.exit(build.status ?? 1);
+const shellBuild = spawnSync('hutch electrobun build --env=dev', { cwd: root, env, stdio: 'inherit', shell: true });
+if (shellBuild.error) throw shellBuild.error;
+if (shellBuild.status !== 0) process.exit(shellBuild.status ?? 1);
 
 const connection = spawnSync(process.execPath, [entry, 'connection'], { cwd: root, env, encoding: 'utf8' });
 if (connection.error) throw connection.error;
@@ -43,11 +46,22 @@ if (existingService) {
   console.warn('Using the existing LifeOS service. Backend changes require stopping that service and restarting dev:desktop.');
 }
 console.log('Starting the desktop with Vite live reload...');
-const child = spawn('pnpm', ['tauri', 'dev'], {
-  cwd: root,
-  env: { ...env, LIFEOS_DEV_DATA_DIR: dataDir, LIFEOS_DEV_SERVICE_URL: `http://127.0.0.1:${port}` },
-  stdio: 'inherit',
-  shell: process.platform === 'win32',
-});
-child.on('error', error => { console.error(error.message); process.exitCode = 1; });
-child.on('exit', (code, signal) => { process.exitCode = code ?? (signal ? 1 : 0); });
+process.env.LIFEOS_DEV_SERVICE_URL = `http://127.0.0.1:${port}`;
+const { createServer } = await import('vite');
+const vite = await createServer({ root });
+try {
+  await vite.listen();
+  vite.printUrls();
+  const bin = join(root, 'build', `dev-win-${process.arch}`, 'LifeOS-dev', 'bin');
+  const desktop = spawn(join(bin, 'launcher.exe'), [], {
+    cwd: bin,
+    env: { ...env, LIFEOS_ELECTROBUN_DEV: '1' },
+    stdio: 'inherit',
+  });
+  await new Promise((resolveExit, reject) => {
+    desktop.on('error', reject);
+    desktop.on('exit', code => code === 0 ? resolveExit() : reject(new Error(`LifeOS exited with code ${code}.`)));
+  });
+} finally {
+  await vite.close();
+}

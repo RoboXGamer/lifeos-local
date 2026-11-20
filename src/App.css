@@ -103,6 +103,38 @@ body {
 .more-nav-menu a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; color: hsl(225 18% 35%); font-size: .8rem; font-weight: 600; text-decoration: none; }
 .more-nav-menu a:hover, .more-nav-menu a.selected { color: var(--color-purple); background: hsl(248 75% 97%); }
 
+.desktop-update {
+  display: grid;
+  gap: 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 4px;
+}
+
+.desktop-update button {
+  min-height: 34px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  text-align: left;
+  color: hsl(225 18% 35%);
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+.desktop-update button:not(:disabled):hover {
+  color: var(--color-purple);
+  background: hsl(248 75% 97%);
+}
+
+.desktop-update [role="status"]:not(:empty) {
+  padding: 0 10px 6px;
+  color: hsl(225 18% 35%);
+  font-size: .75rem;
+}
+
 .sidebar-footer {
   display: flex;
   flex-direction: column;

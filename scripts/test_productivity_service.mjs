@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const dataDir = mkdtempSync(join(tmpdir(), 'lifeos-productivity-service-'));
-const exe = resolve('src-tauri/binaries/lifeos-x86_64-pc-windows-msvc.exe');
+const exe = resolve('dist/desktop-service/lifeos.exe');
 const env = { ...process.env, LIFEOS_DATA_DIR: dataDir, LIFEOS_CLIENT_DIR: resolve('dist/client'), LIFEOS_SCHEDULER_INTERVAL_MS: '1000' };
 function cli(...args) {
   const result = spawnSync(exe, ['--json', ...args], { env, encoding: 'utf8', windowsHide: true, timeout: 20000 });

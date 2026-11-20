@@ -1,9 +1,9 @@
-import { execFileSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { execFileSync, execSync } from 'node:child_process';
+import { cpSync, mkdirSync } from 'node:fs';
 
-execFileSync('pnpm', ['build'], { stdio: 'inherit', shell: process.platform === 'win32' });
-const host = execFileSync('rustc', ['-vV'], { encoding: 'utf8' }).match(/^host: (.+)$/m)?.[1].trim();
-if (!host) throw new Error('Could not determine Rust host target');
-mkdirSync('src-tauri/binaries', { recursive: true });
+execSync('pnpm build', { stdio: 'inherit' });
+const output = 'dist/desktop-service';
+mkdirSync(output, { recursive: true });
 const suffix = process.platform === 'win32' ? '.exe' : '';
-execFileSync('bun', ['build', '--compile', 'server/launcher.mjs', '--outfile', `src-tauri/binaries/lifeos-${host}${suffix}`], { stdio: 'inherit', shell: process.platform === 'win32' });
+execFileSync('bun', ['build', '--compile', 'server/launcher.mjs', '--outfile', `${output}/lifeos${suffix}`], { stdio: 'inherit' });
+cpSync('dist/client', `${output}/lifeos-client`, { recursive: true });

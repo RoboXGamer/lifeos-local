@@ -10,7 +10,7 @@ import { createAutomations, automationRecipes, automationSchema } from '../src/l
 import { createTemplates } from '../src/local/templates.ts';
 
 const directory = mkdtempSync(join(tmpdir(), 'lifeos-automation-test-'));
-const migrations = readdirSync('src-tauri/migrations').filter(name => /^\d+.*\.sql$/.test(name)).sort().map(name => [Number(name.split('_')[0]), name.replace(/^\d+_|\.sql$/g, ''), readFileSync(join('src-tauri/migrations', name), 'utf8')]);
+const migrations = readdirSync('server/migrations').filter(name => /^\d+.*\.sql$/.test(name)).sort().map(name => [Number(name.split('_')[0]), name.replace(/^\d+_|\.sql$/g, ''), readFileSync(join('server/migrations', name), 'utf8')]);
 const storage = openStorage(join(directory, 'lifeos.db'), migrations);
 installStorageAdapter(storage);
 const now = Date.now();
