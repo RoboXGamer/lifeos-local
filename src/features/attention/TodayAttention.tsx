@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 import { api } from "../../local/api";
 import { data } from "../../local/store";
 import { addDays } from "../../local/templates";
@@ -7,20 +7,18 @@ import { useWorkspaces } from "../workspaces/context";
 import type { Id } from "../../local/types";
 import "./TodayAttention.css";
 
-export function TodayAttention() {
+export function TodayAttention(props: { today: string }) {
   const workspaces = useWorkspaces();
   const workspaceId = () => workspaces.state.activeWorkspaceId!;
   const [capacity, setCapacity] = createSignal("");
-  const [today, setToday] = createSignal(localDateKey());
   const [message, setMessage] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   createEffect(workspaceId, id => {
     const saved = localStorage.getItem(`lifeos-attention-minutes:${id}`) ?? "";
     setCapacity(/^\d+$/.test(saved) && Number(saved) > 0 && Number(saved) <= 1440 ? saved : ""); setMessage("");
   });
-  onSettled(() => { const timer = setInterval(() => setToday(localDateKey()), 60000); return () => clearInterval(timer); });
   const overview = createMemo(() => data.workspaces.some(w => w._id === workspaceId() && !w.archived)
-    ? api.attention.build({ workspaceId: workspaceId(), availableMinutes: capacity() ? Number(capacity()) : undefined, date: today() })
+    ? api.attention.build({ workspaceId: workspaceId(), availableMinutes: capacity() ? Number(capacity()) : undefined, date: props.today })
     : { suggestions: [], hiddenCount: 0, eligibleCount: 0, availableMinutes: null });
   const feedback = () => data.attentionFeedback.filter(f => f.workspaceId === workspaceId());
   const perform = async (work: () => Promise<unknown>, success: string) => {

@@ -3,11 +3,11 @@ import {
   Show,
   createEffect,
   createSignal,
-  onSettled,
   untrack,
   type Accessor,
   type Element,
 } from "solid-js";
+import { createEventListener } from "@solid-primitives/event-listener";
 import type { Id } from "../../local/types";
 import { Icon, type IconName } from "../../Icon";
 import {
@@ -63,12 +63,8 @@ export function ItemInspector(props: { docked: boolean }) {
     wasVisible = open;
   });
 
-  onSettled(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && visible()) panel.close();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+  createEventListener(() => window, "keydown", (event) => {
+    if (event.key === "Escape" && visible()) panel.close();
   });
 
   return (

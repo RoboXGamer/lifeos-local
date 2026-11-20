@@ -1,4 +1,5 @@
-import { For, Show, createSignal, onSettled } from "solid-js";
+import { For, Show, createSignal } from "solid-js";
+import { createEventListener } from "@solid-primitives/event-listener";
 import { Icon } from "../../Icon";
 import { createConnectionState } from "../../local";
 import { useItems } from "./context";
@@ -20,12 +21,8 @@ export function InboxPanel(props: {
   const [capturing, setCapturing] = createSignal(false);
   let captureInput!: HTMLInputElement;
 
-  onSettled(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && props.open) props.onClose();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+  createEventListener(() => window, "keydown", (event) => {
+    if (event.key === "Escape" && props.open) props.onClose();
   });
 
   const capture = async (event: SubmitEvent) => {

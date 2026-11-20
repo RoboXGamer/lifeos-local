@@ -1,8 +1,6 @@
-# LifeOS Local — Electrobun desktop port
+# LifeOS Local
 
 LifeOS is a personal, local-first desktop app for capturing what is on your mind and organizing the parts of life that matter to you. The desktop app and CLI use the same local service and SQLite database; an account or cloud connection is not required.
-
-This worktree brings the existing `dev` branch's Solid interface, Bun service, SQLite data model, and CLI into Electrobun. The original checkout and the Electrobun reference project are separate from this port.
 
 ## What is here
 
@@ -20,7 +18,7 @@ See [Productivity and local intelligence](docs/PRODUCTIVITY.md) for the new flow
 
 ## How it fits together
 
-The Zig desktop shell uses Electrobun and system WebView2. It starts or discovers the existing Bun service, then opens the Solid interface at the authenticated loopback URL. The service handles shared domain operations and SQLite transactions. The desktop subscribes to state through Solid server functions using `live()`, so a CLI write can reach an open window.
+The Zig desktop shell uses Electrobun and system WebView2. It starts or discovers the Bun service, then opens the Solid 2 interface at the authenticated loopback URL. The service handles shared domain operations and SQLite transactions. The UI consumes the service's `live()` snapshot stream through a Solid async memo, so CLI writes appear in an open window. Solid Primitives handles responsive layout, event listeners, and the shared clock on Today.
 
 The `lifeos` executable acts as both CLI and service launcher. It starts or discovers the service as needed, including when the desktop window is closed. Data remains on the machine; the local server is not a cloud dependency. See [CLI architecture](docs/CLI-ARCHITECTURE.md) for the design and outstanding verification work.
 
@@ -29,7 +27,7 @@ The `lifeos` executable acts as both CLI and service launcher. It starts or disc
 For Windows development and packaging, install:
 
 - Node.js 22.12 or newer and pnpm (the project pins pnpm 12.4.1).
-- Hutch on `PATH` and the Windows WebView2 runtime. Hutch resolves the Electrobun and Zig versions pinned in this worktree.
+- Hutch on `PATH` and the Windows WebView2 runtime. Hutch resolves the Electrobun and Zig versions pinned by the project.
 - [Bun](https://bun.com/) to compile the service executable.
 - [uv](https://docs.astral.sh/uv/) for the Python utility scripts.
 

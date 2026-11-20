@@ -1,4 +1,5 @@
 import { Show, createSignal, onSettled } from "solid-js";
+import { createEventListener } from "@solid-primitives/event-listener";
 
 type Status = "disabled" | "idle" | "checking" | "current" | "available" | "downloading" | "ready" | "installing" | "failed";
 type Report = { status: Status; version: string; message: string };
@@ -11,12 +12,10 @@ export function UpdateControl() {
     desktop.__electrobunSendToHost?.(`lifeos:updates:${action}`);
   };
 
-  onSettled(() => {
-    const listener = (event: Event) => setReport((event as CustomEvent<Report>).detail);
-    window.addEventListener("lifeos-update", listener);
-    send("status");
-    return () => window.removeEventListener("lifeos-update", listener);
+  createEventListener(() => window, "lifeos-update", (event: Event) => {
+    setReport((event as CustomEvent<Report>).detail);
   });
+  onSettled(() => send("status"));
 
   const button = () => {
     switch (report().status) {

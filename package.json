@@ -16,6 +16,9 @@
     "test:desktop": "node scripts/test_desktop_cli.mjs"
   },
   "dependencies": {
+    "@solid-primitives/event-listener": "3.0.0",
+    "@solid-primitives/media": "4.0.0",
+    "@solid-primitives/timer": "1.4.5",
     "@solidjs/router": "2.0.1",
     "@solidjs/web": "2.0.3",
     "nanoid": "6.0.2",

@@ -1,4 +1,6 @@
-import { createEffect, createSignal, For, onSettled, Show, type ParentProps } from "solid-js";
+import { createEffect, createSignal, For, Show, type ParentProps } from "solid-js";
+import { createEventListener } from "@solid-primitives/event-listener";
+import { createMediaQuery } from "@solid-primitives/media";
 import "./App.css";
 import { Icon } from "./Icon";
 import { useLocation } from "@solidjs/router";
@@ -40,10 +42,9 @@ function App(props: RouteSectionProps) {
 }
 
 function AppShell(props: ParentProps) {
-  const desktopMedia = window.matchMedia("(min-width: 1101px)");
-  const [desktopShell, setDesktopShell] = createSignal(desktopMedia.matches);
+  const desktopShell = createMediaQuery("(min-width: 1101px)");
   const desktopInboxOpen =
-    desktopMedia.matches &&
+    desktopShell() &&
     localStorage.getItem("life-os-inbox-collapsed") !== "true";
   const [inboxOpen, toggleInbox] = createSignal(desktopInboxOpen);
   const [searchOpen, setSearchOpen] = createSignal(false);
@@ -107,27 +108,17 @@ function AppShell(props: ParentProps) {
     },
   );
 
-  onSettled(() => {
-    const openInbox = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.code === "Space") {
-        event.preventDefault();
-        if (!inboxOpen()) toggleInboxPanel();
-      }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        openSearch();
-      }
-      if (event.key === "Escape" && searchOpen()) closeSearch();
-      if (event.key === "Escape" && moreOpen()) setMoreOpen(false);
-    };
-    window.addEventListener("keydown", openInbox);
-    const updateShellMode = (event: MediaQueryListEvent) =>
-      setDesktopShell(event.matches);
-    desktopMedia.addEventListener("change", updateShellMode);
-    return () => {
-      window.removeEventListener("keydown", openInbox);
-      desktopMedia.removeEventListener("change", updateShellMode);
-    };
+  createEventListener(() => window, "keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.code === "Space") {
+      event.preventDefault();
+      if (!inboxOpen()) toggleInboxPanel();
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      openSearch();
+    }
+    if (event.key === "Escape" && searchOpen()) closeSearch();
+    if (event.key === "Escape" && moreOpen()) setMoreOpen(false);
   });
 
   return (

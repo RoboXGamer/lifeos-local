@@ -1,4 +1,5 @@
-import { createOptimisticStore, For, Show } from "solid-js";
+import { createMemo, createOptimisticStore, For, Show } from "solid-js";
+import { createPolled } from "@solid-primitives/timer";
 import { api } from "../local/api";
 import type { Id } from "../local/types";
 import { createQuery } from "../local";
@@ -17,12 +18,13 @@ export default function Today() {
   const workspaces = useWorkspaces();
   const items = useItems();
   const panel = useItemPanelRoute();
-  const today = localDateKey();
+  const now = createPolled(Date.now, () => 60_000);
+  const today = createMemo(() => localDateKey(new Date(now())));
   const source = createQuery(
     api.items.listToday,
     () => {
       const workspaceId = workspaces.state.activeWorkspaceId;
-      return workspaceId ? { workspaceId, date: today } : "skip";
+      return workspaceId ? { workspaceId, date: today() } : "skip";
     },
     { initialValue: [] },
   );
@@ -47,11 +49,11 @@ export default function Today() {
   return (
     <section class="retrieval-page today-page">
       <header class="retrieval-header">
-        <div><h2>Today</h2><p class="today-date">{new Date(`${today}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p></div>
+        <div><h2>Today</h2><p class="today-date">{new Date(`${today()}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p></div>
         <button
           type="button"
           class="primary-action"
-          onClick={() => panel.createItem({ date: today })}
+          onClick={() => panel.createItem({ date: today() })}
         >
           <Icon name="plus" size={17} />
           Add for today
@@ -109,7 +111,7 @@ export default function Today() {
           </div>
         </div>
       </Show>
-      </div><aside class="today-context" aria-label="Daily context"><HabitsToday /><details class="today-suggestions"><summary>Worth your attention</summary><TodayAttention /></details></aside></div>
+      </div><aside class="today-context" aria-label="Daily context"><HabitsToday now={now()} /><details class="today-suggestions"><summary>Worth your attention</summary><TodayAttention today={today()} /></details></aside></div>
     </section>
   );
 }

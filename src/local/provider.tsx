@@ -1,7 +1,7 @@
-import { Show, createSignal, onCleanup, onSettled, type ParentProps } from "solid-js";
+import { Show, createEffect, createMemo, createSignal, type ParentProps } from "solid-js";
 import { enableRemoteMutations } from "./api";
 import { applySnapshot } from "./store";
-import { callMutation, watchState } from "./server-functions";
+import { callMutation, watchState, type StateUpdate } from "./server-functions";
 import { toError } from "./query";
 
 /** Wait for the local service's first snapshot before rendering the app. */
@@ -9,39 +9,30 @@ export function LocalProvider(props: ParentProps) {
   const [ready, setReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
-  let iterator: AsyncIterator<import('./server-functions').StateUpdate> | undefined;
-  let generation = 0;
-  const boot = async () => {
-    const current = ++generation;
-    try {
-      iterator = watchState()[Symbol.asyncIterator]();
-      while (current === generation) {
-        const next = await iterator.next();
-        if (next.done || current !== generation) break;
-        applySnapshot(next.value);
-        enableRemoteMutations(callMutation);
-        setError(null);
-        setReady(true);
-      }
-    } catch (reason) {
-      if (current !== generation) return;
+  const [attempt, setAttempt] = createSignal(0);
+  const snapshot = createMemo<StateUpdate | undefined>(() => {
+    attempt();
+    return watchState();
+  }, { ssrSource: "client", loadingValue: undefined });
+
+  createEffect(snapshot, {
+    effect(update) {
+      if (!update) return;
+      applySnapshot(update);
+      enableRemoteMutations(callMutation);
+      setError(null);
+      setReady(true);
+    },
+    error(reason) {
       setError(toError(reason).message);
       setReady(false);
-    }
-  };
-
-  onSettled(() => {
-    void boot();
+    },
   });
 
-  onCleanup(() => { generation++; void iterator?.return?.(); });
-
   const retry = () => {
-    generation++;
-    void iterator?.return?.();
     setError(null);
     setReady(false);
-    void boot();
+    setAttempt((previous) => previous + 1);
   };
 
   return (
