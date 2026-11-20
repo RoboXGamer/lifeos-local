@@ -1,0 +1,16 @@
+.project-detail, .project-form { display: grid; gap: 16px; min-width: 0; }
+.project-card-heading { display: flex; justify-content: space-between; gap: 14px; align-items: start; flex-wrap: wrap; }
+.project-brief { display: grid; grid-template-columns: minmax(90px, 130px) minmax(0, 1fr); gap: 10px 16px; }
+.project-brief dt { font-weight: 600; color: hsl(225 12% 43%); }
+.project-brief dd { white-space: pre-wrap; overflow-wrap: anywhere; }
+.projects-page code { font: .76rem/1.6 ui-monospace, monospace; overflow-wrap: anywhere; }
+.projects-page ul, .projects-page ol { padding-left: 24px; display: grid; gap: 9px; }
+.projects-page summary { cursor: pointer; font-weight: 600; }
+.project-source { display: grid; min-width: 0; padding: 12px 0; border-top: 1px solid var(--color-border); scroll-margin-top: 20px; }
+.project-source summary small, .project-block { display: block; }
+.project-source pre { margin: 10px 0; padding: 12px; border-radius: 8px; background: hsl(225 20% 97%); max-height: 330px; overflow: auto; font: .75rem/1.6 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.project-source > button { margin-top: 10px; }
+.project-recommendation { text-transform: capitalize; border-radius: 9px; padding: 7px 12px; color: var(--color-purple); background: hsl(248 75% 97%); }
+.project-checkbox { display: flex !important; flex-direction: row; align-items: center; gap: 7px; }
+.project-checkbox input { width: auto; }
+@media(max-width:600px) { .project-brief { grid-template-columns: 1fr; gap: 6px; } .project-brief dd { margin-bottom: 8px; } }

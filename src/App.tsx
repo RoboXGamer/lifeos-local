@@ -1,15 +1,17 @@
-import { createEffect, createSignal, For, onSettled, Show, type ParentProps } from "solid-js";
+import { createEffect, createSignal, For, Show, type ParentProps } from "solid-js";
+import { createEventListener } from "@solid-primitives/event-listener";
+import { createMediaQuery } from "@solid-primitives/media";
 import "./App.css";
 import { Icon } from "./Icon";
 import { useLocation } from "@solidjs/router";
 import { WorkspaceProvider } from "./features/workspaces/context";
 import { WorkspaceMenu } from "./features/workspaces/WorkspaceMenu";
+import { UpdateControl } from "./features/updates/UpdateControl";
 import { ItemProvider } from "./features/items/context";
 import { InboxPanel } from "./features/items/InboxPanel";
 import { ItemInspector } from "./features/items/ItemInspector";
 import { SearchPanel } from "./features/items/SearchPanel";
 import { useItemPanelRoute } from "./features/items/routing";
-import { UpdateButton } from "./features/updates/UpdateButton";
 import type { RouteSectionProps } from "@solidjs/router";
 
 const navItems = [
@@ -18,6 +20,15 @@ const navItems = [
   { id: "upcoming", label: "Upcoming", icon: "calendar" },
   { id: "tags", label: "Tags", icon: "tag" },
   { id: "archive", label: "Archive", icon: "archive" },
+] as const;
+
+const moreItems = [
+  { id: "habits", label: "Habits and progress", icon: "heart" },
+  { id: "templates", label: "Templates", icon: "description" },
+  { id: "recurring", label: "Recurring", icon: "clock" },
+  { id: "projects", label: "Projects", icon: "folder" },
+  { id: "automations", label: "Automations", icon: "sparkle" },
+  { id: "obligations", label: "Promise to payment", icon: "currency" },
 ] as const;
 
 function App(props: RouteSectionProps) {
@@ -31,17 +42,17 @@ function App(props: RouteSectionProps) {
 }
 
 function AppShell(props: ParentProps) {
-  const desktopMedia = window.matchMedia("(min-width: 681px)");
-  const [desktopShell, setDesktopShell] = createSignal(desktopMedia.matches);
+  const desktopShell = createMediaQuery("(min-width: 1101px)");
   const desktopInboxOpen =
-    desktopMedia.matches &&
+    desktopShell() &&
     localStorage.getItem("life-os-inbox-collapsed") !== "true";
   const [inboxOpen, toggleInbox] = createSignal(desktopInboxOpen);
   const [searchOpen, setSearchOpen] = createSignal(false);
+  const [moreOpen, setMoreOpen] = createSignal(false);
   const location = useLocation();
   const itemPanel = useItemPanelRoute();
   const inspectorOpen = () => !!location.query.mode;
-  const navActive = (id: (typeof navItems)[number]["id"]) =>
+  const navActive = (id: (typeof navItems)[number]["id"] | (typeof moreItems)[number]["id"]) =>
     id === "areas"
       ? location.pathname.startsWith("/app/areas")
       : location.pathname === `/app/${id}`;
@@ -62,7 +73,7 @@ function AppShell(props: ParentProps) {
     );
   };
   const openSearch = () => {
-    if (window.matchMedia("(max-width: 680px)").matches) closeInbox(false);
+    if (!desktopShell()) closeInbox(false);
     setSearchOpen(true);
     queueMicrotask(() =>
       document.querySelector<HTMLInputElement>("#global-search-input")?.focus(),
@@ -73,7 +84,7 @@ function AppShell(props: ParentProps) {
     if (
       open &&
       inspectorOpen() &&
-      window.matchMedia("(max-width: 680px)").matches
+      !desktopShell()
     ) {
       itemPanel.close();
     }
@@ -97,26 +108,17 @@ function AppShell(props: ParentProps) {
     },
   );
 
-  onSettled(() => {
-    const openInbox = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.code === "Space") {
-        event.preventDefault();
-        if (!inboxOpen()) toggleInboxPanel();
-      }
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        openSearch();
-      }
-      if (event.key === "Escape" && searchOpen()) closeSearch();
-    };
-    window.addEventListener("keydown", openInbox);
-    const updateShellMode = (event: MediaQueryListEvent) =>
-      setDesktopShell(event.matches);
-    desktopMedia.addEventListener("change", updateShellMode);
-    return () => {
-      window.removeEventListener("keydown", openInbox);
-      desktopMedia.removeEventListener("change", updateShellMode);
-    };
+  createEventListener(() => window, "keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.code === "Space") {
+      event.preventDefault();
+      if (!inboxOpen()) toggleInboxPanel();
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      openSearch();
+    }
+    if (event.key === "Escape" && searchOpen()) closeSearch();
+    if (event.key === "Escape" && moreOpen()) setMoreOpen(false);
   });
 
   return (
@@ -153,9 +155,19 @@ function AppShell(props: ParentProps) {
                 </a>
               )}
             </For>
+            <button class={["nav-button", { active: moreOpen() || moreItems.some(item => navActive(item.id)) }]} type="button" aria-label="More" title="More" aria-expanded={moreOpen() ? "true" : "false"} aria-controls="more-navigation" onClick={() => setMoreOpen(!moreOpen())}>
+              <Icon name="more" size={22} />
+            </button>
           </nav>
+          <Show when={moreOpen()}>
+            <button class="more-nav-backdrop" type="button" aria-label="Close More menu" onClick={() => setMoreOpen(false)} />
+            <div class="more-nav-menu" id="more-navigation" aria-label="More navigation">
+              <strong>More</strong>
+              <For each={moreItems}>{item => <a class={{ selected: navActive(item.id) }} href={`/app/${item.id}`} onClick={() => { setMoreOpen(false); closeInboxForNavigation(); }}><Icon name={item.icon} size={18} /><span>{item.label}</span></a>}</For>
+              <UpdateControl />
+            </div>
+          </Show>
           <div class="sidebar-footer">
-            <UpdateButton />
             <WorkspaceMenu />
           </div>
         </aside>

@@ -1,0 +1,24 @@
+.today-page { overflow-y: auto; }
+.today-page .retrieval-header h2 { font-size: clamp(1.45rem, 2.4vw, 1.8rem); }
+.today-page .retrieval-header { flex-wrap: wrap; align-items: flex-start; }
+.today-date { margin-top: 3px; color: hsl(225 12% 48%); font-size: .78rem; }
+.today-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 310px); gap: 18px; align-items: start; }
+.today-work { min-width: 0; display: grid; gap: 12px; }
+.today-work-heading { display: flex; align-items: center; gap: 8px; }
+.today-work-heading h3 { font-size: .95rem; }
+.today-work-heading span { color: hsl(225 12% 48%); font-size: .7rem; }
+.today-work .retrieval-scroll { overflow: visible; }
+.today-work .retrieval-empty { min-height: 180px; border: 1px solid var(--color-border); border-radius: 14px; background: white; }
+.today-work .retrieval-empty h3 { font-size: 1rem; }
+.today-context { display: grid; gap: 12px; min-width: 0; }
+.today-context .habits-today, .today-suggestions { padding: 14px; border: 1px solid var(--color-border); border-radius: 14px; background: white; }
+.today-context .habits-today header p { display: none; }
+.today-context .habits-today header a { font-size: .73rem; }
+.today-context .habit-today-card { grid-template-columns: minmax(0, 1fr); }
+.today-context .habit-today-card details { grid-column: auto; }
+.today-suggestions > summary { cursor: pointer; font-size: .82rem; font-weight: 700; }
+.today-suggestions .today-attention { border: 0; padding: 12px 0 0; background: transparent; }
+.today-suggestions .today-attention > header { align-items: flex-start; flex-wrap: wrap; }
+.today-suggestions .today-attention h3 { font-size: .85rem; }
+.today-suggestions .attention-grid { grid-template-columns: minmax(0, 1fr); }
+@container (max-width: 800px) { .today-layout { grid-template-columns: minmax(0, 1fr); } .today-context { grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); } }

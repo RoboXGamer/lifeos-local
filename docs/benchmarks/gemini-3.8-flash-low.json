@@ -1,0 +1,91 @@
+{
+  "results": [
+    {
+      "id": "new_quote_task",
+      "tasks": [{"action": "call", "person": "Zoya", "scheduled_date": "2026-11-06"}],
+      "money": [{"person": "Zoya", "description": "lighting", "amount": 300000, "currency": "INR", "state": "quote"}],
+      "waiting": [],
+      "uncertainties": []
+    },
+    {
+      "id": "new_paid_no_currency",
+      "tasks": [],
+      "money": [{"person": "Arjun", "description": null, "amount": 50000, "currency": null, "state": "paid"}],
+      "waiting": [],
+      "uncertainties": []
+    },
+    {
+      "id": "new_quote_not_paid",
+      "tasks": [],
+      "money": [{"person": "Simran", "description": null, "amount": 35000, "currency": "INR", "state": "quote"}],
+      "waiting": [],
+      "uncertainties": []
+    },
+    {
+      "id": "new_two_people",
+      "tasks": [],
+      "money": [
+        {"person": "Pooja", "description": "sale", "amount": 600000, "currency": "INR", "state": "agreed"},
+        {"person": "Karan", "description": "venue", "amount": 200000, "currency": "INR", "state": "quote"}
+      ],
+      "waiting": [],
+      "uncertainties": []
+    },
+    {
+      "id": "new_future_unpaid",
+      "tasks": [],
+      "money": [{"person": "plumber", "description": null, "amount": 8000, "currency": "INR", "state": "planned"}],
+      "waiting": [],
+      "uncertainties": []
+    },
+    {
+      "id": "new_refund",
+      "tasks": [],
+      "money": [{"person": "Anil", "description": "decorator", "amount": 4000, "currency": "INR", "state": "refund"}],
+      "waiting": [],
+      "uncertainties": []
+    },
+    {
+      "id": "new_other_waiting",
+      "tasks": [],
+      "money": [],
+      "waiting": [{"person": "Leena", "action": "send contract", "scheduled_date": "2026-11-06"}],
+      "uncertainties": []
+    },
+    {
+      "id": "new_neutral",
+      "tasks": [],
+      "money": [],
+      "waiting": [],
+      "uncertainties": []
+    },
+    {
+      "id": "new_task_no_date",
+      "tasks": [{"action": "talk about meeting", "person": "Farah", "scheduled_date": null}],
+      "money": [],
+      "waiting": [],
+      "uncertainties": []
+    },
+    {
+      "id": "new_received_unknown_total",
+      "tasks": [],
+      "money": [{"person": "Customer", "description": null, "amount": 45000, "currency": "INR", "state": "paid"}],
+      "waiting": [],
+      "uncertainties": ["Final agreed price is unknown"]
+    },
+    {
+      "id": "new_hindi_payment",
+      "tasks": [],
+      "money": [{"person": "रवि", "description": "अग्रिम भुगतान", "amount": 9000, "currency": "INR", "state": "paid"}],
+      "waiting": [],
+      "uncertainties": []
+    },
+    {
+      "id": "new_no_amount",
+      "tasks": [],
+      "money": [{"person": "Nikhil", "description": "price", "amount": null, "currency": null, "state": "agreed"}],
+      "waiting": [],
+      "uncertainties": ["Confirmed price amount has not been disclosed"]
+    }
+  ]
+}

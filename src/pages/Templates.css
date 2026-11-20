@@ -1,0 +1,15 @@
+.templates-page .productivity-layout { grid-template-columns: minmax(210px, 300px) minmax(0, 1fr); }
+.template-library { align-content: start; gap: 2px; }
+.template-library > button { border-color: transparent; border-radius: 9px; padding: 10px 12px; }
+.template-library > button small { color: hsl(225 12% 48%); font-size: .7rem; font-weight: 400; }
+.template-search { margin-bottom: 10px; }
+.template-search span { font-size: .72rem; color: hsl(225 12% 48%); }
+.template-detail { gap: 18px; }
+.template-detail-heading { display: grid; gap: 4px; }
+.template-detail-heading small { color: var(--color-purple); font-size: .65rem; letter-spacing: .08em; font-weight: 700; }
+.template-detail-heading p { font-size: .78rem; }
+.template-preview-heading { padding-top: 14px; border-top: 1px solid var(--color-border); }
+.template-detail .productivity-preview { gap: 0; }
+.template-detail .productivity-preview li { padding: 10px 0; border-bottom: 1px solid var(--color-border); font-size: .8rem; }
+.template-detail .productivity-preview small { margin-top: 3px; font-size: .7rem; }
+@container (max-width: 700px) { .templates-page .productivity-layout { grid-template-columns: minmax(0, 1fr); } .template-library { grid-template-columns: 1fr; } }

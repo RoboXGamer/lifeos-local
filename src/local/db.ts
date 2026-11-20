@@ -1,20 +1,34 @@
-import Database from "@tauri-apps/plugin-sql";
-
-let connection: Promise<Database> | null = null;
-
-/** One connection per session; the plugin opens the SQLite file lazily. */
-export function db(): Promise<Database> {
-  connection ??= Database.load("sqlite:lifeos.db");
-  return connection;
+/** The local service supplies the only SQLite implementation. */
+export interface StorageAdapter {
+  select<Row>(sql: string, params: unknown[]): Promise<Row[]>;
+  run(sql: string, params: unknown[]): Promise<void>;
+  transaction<T>(work: () => Promise<T>, refresh: () => Promise<void>): Promise<T>;
 }
 
-export async function select<Row>(
-  sql: string,
-  params: unknown[] = [],
-): Promise<Row[]> {
-  return (await db()).select<Row[]>(sql, params);
+let storageAdapter: StorageAdapter | undefined;
+
+export function installStorageAdapter(adapter: StorageAdapter): void {
+  if (storageAdapter) throw new Error("Storage adapter is already installed");
+  storageAdapter = adapter;
 }
 
-export async function run(sql: string, params: unknown[] = []): Promise<void> {
-  await (await db()).execute(sql, params);
+export function hasStorageAdapter(): boolean {
+  return storageAdapter !== undefined;
+}
+
+function storage(): StorageAdapter {
+  if (!storageAdapter) throw new Error("The local service storage is not initialized");
+  return storageAdapter;
+}
+
+export function select<Row>(sql: string, params: unknown[] = []): Promise<Row[]> {
+  return storage().select<Row>(sql, params);
+}
+
+export function run(sql: string, params: unknown[] = []): Promise<void> {
+  return storage().run(sql, params);
+}
+
+export function transaction<T>(work: () => Promise<T>, refresh: () => Promise<void>): Promise<T> {
+  return storage().transaction(work, refresh);
 }

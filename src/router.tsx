@@ -10,6 +10,12 @@ import Search from "./pages/Search";
 import Tags from "./pages/Tags";
 import Today from "./pages/Today";
 import Upcoming from "./pages/Upcoming";
+import Templates from "./pages/Templates";
+import Recurring from "./pages/Recurring";
+import Automations from "./pages/Automations";
+import Projects from "./pages/Projects";
+import Obligations from "./pages/Obligations";
+import Habits from "./pages/Habits";
 
 export type ItemPanelMode = "view" | "edit" | "create" | "archived";
 
@@ -39,8 +45,14 @@ const routes = defineRoutes([
       { path: "/areas/:areaId", component: AreaDetail },
       { path: "/areas/:areaId/calendar", component: AreaCalendar },
       { path: "/today", component: Today },
+      { path: "/habits", component: Habits },
       { path: "/upcoming", component: Upcoming },
       { path: "/tags", component: Tags },
+      { path: "/templates", component: Templates },
+      { path: "/recurring", component: Recurring },
+      { path: "/automations", component: Automations },
+      { path: "/projects", component: Projects },
+      { path: "/obligations", component: Obligations },
       { path: "/archive", component: Archive },
       { path: "/search", component: Search },
     ],

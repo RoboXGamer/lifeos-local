@@ -1,0 +1,165 @@
+{
+  "model": "nvidia/nemotron-3.5-bolt-e4b",
+  "thinking": false,
+  "duration_seconds": 20.620384800015017,
+  "usage": {
+    "prompt_tokens": 1603,
+    "completion_tokens": 1160,
+    "total_tokens": 2763,
+    "prompt_tokens_details": {
+      "audio_tokens": null,
+      "cached_tokens": 0
+    },
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": null,
+      "audio_tokens": null,
+      "reasoning_tokens": 0,
+      "rejected_prediction_tokens": null
+    }
+  },
+  "finish_reason": "stop",
+  "checks": [
+    {
+      "id": "new_quote_task",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_paid_no_currency",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_quote_not_paid",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_two_people",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_future_unpaid",
+      "checks": {
+        "money": true,
+        "no_false_payment": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_refund",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_other_waiting",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_neutral",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_task_no_date",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_received_unknown_total",
+      "checks": {
+        "tasks": true,
+        "money": false,
+        "waiting": true
+      },
+      "passed": false
+    },
+    {
+      "id": "new_hindi_payment",
+      "checks": {
+        "tasks": true,
+        "money": true,
+        "waiting": true
+      },
+      "passed": true
+    },
+    {
+      "id": "new_no_amount",
+      "checks": {
+        "tasks": true,
+        "money": false,
+        "waiting": true
+      },
+      "passed": false
+    }
+  ],
+  "response": {
+    "id": "889c0420078c294a",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "content": "{\n  \"results\": [\n    {\n      \"id\": \"new_quote_task\",\n      \"tasks\": [\n        {\n          \"action\": \"call\",\n          \"person\": \"Zoya\",\n          \"scheduled_date\": \"2026-11-06\"\n        }\n      ],\n      \"money\": [\n        {\n          \"person\": \"Zoya\",\n          \"description\": \"lighting\",\n          \"amount\": 300000,\n          \"currency\": \"INR\",\n          \"state\": \"quote\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_paid_no_currency\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Arjun\",\n          \"description\": null,\n          \"amount\": 50000,\n          \"currency\": null,\n          \"state\": \"paid\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_quote_not_paid\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Simran\",\n          \"description\": null,\n          \"amount\": 35000,\n          \"currency\": \"INR\",\n          \"state\": \"quote\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_two_people\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Pooja\",\n          \"description\": \"sale\",\n          \"amount\": 600000,\n          \"currency\": \"INR\",\n          \"state\": \"agreed\"\n        },\n        {\n          \"person\": \"Karan\",\n          \"description\": \"venue\",\n          \"amount\": 200000,\n          \"currency\": \"INR\",\n          \"state\": \"quote\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_future_unpaid\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"plumber\",\n          \"description\": null,\n          \"amount\": 8000,\n          \"currency\": \"INR\",\n          \"state\": \"planned\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_refund\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Anil\",\n          \"description\": null,\n          \"amount\": 4000,\n          \"currency\": \"INR\",\n          \"state\": \"refund\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_other_waiting\",\n      \"tasks\": [],\n      \"money\": [],\n      \"waiting\": [\n        {\n          \"person\": \"Leena\",\n          \"action\": \"send contract\",\n          \"scheduled_date\": \"2026-11-06\"\n        }\n      ],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_neutral\",\n      \"tasks\": [],\n      \"money\": [],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_task_no_date\",\n      \"tasks\": [\n        {\n          \"action\": \"meeting\",\n          \"person\": \"Farah\",\n          \"scheduled_date\": null\n        }\n      ],\n      \"money\": [],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_received_unknown_total\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Customer\",\n          \"description\": null,\n          \"amount\": 45000,\n          \"currency\": \"INR\",\n          \"state\": \"unknown\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": [\n        \"Final agreed price is unknown\"\n      ]\n    },\n    {\n      \"id\": \"new_hindi_payment\",\n      \"tasks\": [],\n      \"money\": [\n        {\n          \"person\": \"Ravi\",\n          \"description\": \"advance\",\n          \"amount\": 9000,\n          \"currency\": \"INR\",\n          \"state\": \"paid\"\n        }\n      ],\n      \"waiting\": [],\n      \"uncertainties\": []\n    },\n    {\n      \"id\": \"new_no_amount\",\n      \"tasks\": [],\n      \"money\": [],\n      \"waiting\": [],\n      \"uncertainties\": [\n        \"Amount is not stated\"\n      ]\n    }\n  ]\n}",
+          "role": "assistant",
+          "reasoning_content": null
+        },
+        "finish_reason": "stop",
+        "logprobs": null
+      }
+    ],
+    "created": 1793609014,
+    "model": "nvidia/nemotron-3.5-bolt-e4b",
+    "service_tier": null,
+    "system_fingerprint": null,
+    "object": "chat.completion",
+    "usage": {
+      "prompt_tokens": 1603,
+      "completion_tokens": 1160,
+      "total_tokens": 2763,
+      "prompt_tokens_details": {
+        "audio_tokens": null,
+        "cached_tokens": 0
+      },
+      "completion_tokens_details": {
+        "accepted_prediction_tokens": null,
+        "audio_tokens": null,
+        "reasoning_tokens": 0,
+        "rejected_prediction_tokens": null
+      }
+    }
+  }
+}

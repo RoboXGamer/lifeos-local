@@ -10,7 +10,7 @@ from pathlib import Path
 
 def main() -> None:
     conn = sqlite3.connect(":memory:")
-    for path in sorted(Path("src-tauri/migrations").glob("*.sql")):
+    for path in sorted(Path("server/migrations").glob("*.sql")):
         conn.executescript(path.read_text(encoding="utf-8"))
         print("applied:", path.name)
 

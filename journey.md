@@ -58,12 +58,32 @@ _21:14 · 0.1.0 upgrades itself to 0.1.1_
 - Ran the real loop: 0.1.0 found 0.1.1 in the sidebar, downloaded it, verified the signature, installed, and relaunched as 0.1.1.
 - The repo stays at 0.1.0 on purpose, so the update stays testable without bumping anything.
 
-**Next up**
+**Next up, as of October 27**
 - Walk the real product flow end to end on desktop: capture → areas → item families → today → archive/restore.
 - Tray icon + autostart, plus the system-wide capture hotkey.
 - Package a signed `.msi` next to the NSIS installer.
 - Backup/export, so one SQLite file is never a single point of failure.
 - Then the redesign pass on the new product vision.
+
+### October 29, 2026 — A shared local backend and productivity workflows
+
+_Times below are commit times in IST, not measured working sessions._
+
+- **12:01–12:08 PM:** Made local mutations transactional, unified search behavior, and added a Windows MSI test build (`a79dfee`, `8c708cc`, `143139c`).
+- **12:56 PM:** Added a local service and CLI, establishing a shared backend for desktop and command-line workflows (`590e471`).
+- **9:53 PM:** Replaced the completed plan with new milestones and added reusable item templates with a starter library (`c77e502`, `89e0fb6`).
+- **10:32–10:59 PM:** Added productivity and local intelligence engines and desktop workflows, then reconciled generated items, project checkpoints, and obligation follow-ups (`7b648ad`, `ecf0969`, `6e75975`).
+
+### October 30, 2026 — Habits and progress
+
+- **1:50 PM:** Added core habits and progress tracking (`f305486`).
+
+### October 31, 2026 — Desktop reliability and daily flow
+
+- **5:17–6:27 PM:** Fixed desktop startup after connecting to the service, refined responsive layouts, stabilized the sidebar, and corrected app-shell sizing (`184b7e8`, `b6584a2`, `f572ade`, `a0486ee`).
+- **7:04–8:03 PM:** Refined daily workflow pages, documented reliability and CLI parity work, preserved form drafts, normalized mutation arguments, and added a live desktop development command (`eb97ad4`, `78a4af3`, `251ae76`, `9b57ea9`).
+
+These timestamps show when changes were committed; they don't establish start times, continuous work, or time spent between commits.
 
 ## What Broke (and How I Fixed It)
 
@@ -87,3 +107,11 @@ _21:14 · 0.1.0 upgrades itself to 0.1.1_
 - Pin versions. Upgrade deliberately, not by accident.
 - No library before the problem exists.
 - Ship a working window before shipping features.
+
+## November 2, 2026 — Rethinking the foundation
+
+**9:32 AM–2:48 PM IST · about 5 hours 16 minutes wall-clock** (including breaks).
+
+Stepped back to rethink LifeOS's data model: keep a small, opinionated set of item types so people can capture life without designing their own database. Explored an immutable event log for future automation, formulas and relationships, and optional add-ons for domains like finance.
+
+Researched local AI capture, model formats and inference speed, then benchmarked local Qwen and LFM alongside hosted models on 12 synthetic Hindi, Hinglish and English captures. Muse Glimmer passed 12/12 selected checks in one run but took 56 seconds; faster models made extraction mistakes. The benchmark is small, so the model choice still needs more testing. Saved the architecture draft, test prompt and benchmark results for the next session.

@@ -175,6 +175,10 @@ body,
   height: calc(100vh - 2 * var(--_margin));
 }
 
+body:has(#app) {
+  overflow: hidden;
+}
+
 body:has(.landing-page) {
   min-width: 320px;
   overflow-x: hidden;

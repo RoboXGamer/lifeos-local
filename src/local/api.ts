@@ -1,6 +1,16 @@
 import { nanoid } from "nanoid";
-import { run, select } from "./db";
-import { data, reload } from "./store";
+import { hasStorageAdapter, run, select, transaction } from "./db";
+import { data, reload, applySnapshot } from "./store";
+import { searchItems } from "./search";
+import { createTemplates, listTemplates, previewTemplate } from "./templates";
+import { createRecurrence, listSchedules, listOccurrences } from "./recurrence";
+import { createAutomations } from "./automations";
+import { createProjects, listProjects, listProjectSources, listProjectCheckpoints, resumeProject, reportProject } from "./projects";
+import { createObligations, listEngagements, obligationDetails, obsoleteObligationItemIds } from "./obligations";
+import { createAttention, buildAttention } from "./attention";
+import { createHabits, listHabits, listGoals, listActivities, habitDetails, goalDetails } from "./habits";
+import { readPersistedItem, type ItemProvenance } from "./item-events";
+import { toTransportValue } from "./transport";
 import type {
   AreaDoc,
   Id,
@@ -100,9 +110,11 @@ const listToday = (args: {
   const date = timestamp(args.date);
   if (!date) return [];
   const areas = visibleAreaIds(args.workspaceId);
+  const obsolete = obsoleteObligationItemIds(args.workspaceId);
   return itemsOf(args.workspaceId).filter(
     (item) =>
       item.dueDate === date &&
+      !obsolete.has(item._id) &&
       !item.archived &&
       (item.areaId === null || areas.has(item.areaId)),
   );
@@ -117,11 +129,13 @@ const listUpcoming = (args: {
   if (!afterDate) return [];
   const limit = Math.max(1, Math.min(Math.floor(args.limit ?? 150), 200));
   const areas = visibleAreaIds(args.workspaceId);
+  const obsolete = obsoleteObligationItemIds(args.workspaceId);
   return itemsOf(args.workspaceId)
     .filter(
       (item) =>
         !!item.dueDate &&
         item.dueDate > afterDate &&
+        !obsolete.has(item._id) &&
         !item.archived &&
         (item.type === "Task" || item.type === "Event") &&
         (item.areaId === null || areas.has(item.areaId)),
@@ -133,19 +147,10 @@ const search = (args: {
   workspaceId: Id<"workspaces">;
   searchTerm: string;
   limit?: number;
+  type?: ItemType;
 }): ItemView[] => {
-  const term = args.searchTerm.trim().toLowerCase();
-  if (!term) return [];
   const limit = Math.max(1, Math.min(Math.floor(args.limit ?? 40), 60));
-  const areas = visibleAreaIds(args.workspaceId);
-  return itemsOf(args.workspaceId)
-    .filter(
-      (item) =>
-        !item.archived &&
-        item.title.toLowerCase().includes(term) &&
-        (item.areaId === null || areas.has(item.areaId)),
-    )
-    .slice(0, limit);
+  return searchItems(data.items, data.areas, args.workspaceId, args.searchTerm, limit, args.type);
 };
 
 const get = (args: { itemId: Id<"items"> }): ItemView | undefined =>
@@ -237,8 +242,9 @@ function validateLocation(
   }
 }
 
-function requireItemCapacity(workspaceId: Id<"workspaces">) {
-  if (itemsOf(workspaceId).length >= 500) {
+async function requireItemCapacity(workspaceId: Id<"workspaces">) {
+  const [row] = await select<{ count: number }>("SELECT COUNT(*) AS count FROM items WHERE workspaceId=?", [workspaceId]);
+  if (row.count >= 500) {
     throw new Error("A Workspace can have at most 500 Items in V1.");
   }
 }
@@ -296,25 +302,27 @@ const quickCapture = async (args: {
   workspaceId: Id<"workspaces">;
   title: string;
 }): Promise<Id<"items">> => {
-  requireItemCapacity(args.workspaceId);
+  await requireItemCapacity(args.workspaceId);
   const now = Date.now();
   const itemId = uid() as Id<"items">;
   await run(
     `INSERT INTO items (${ITEM_COLUMNS}) VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, ?, ?)`,
     [itemId, now, args.workspaceId, cleanTitle(args.title), now, now],
   );
-  await reload();
+  await automations.itemChanged(itemId, true);
   return itemId;
 };
 
 const create = async (
   args: { workspaceId: Id<"workspaces"> } & ItemInput,
+  provenance: ItemProvenance = { origin: "user" },
 ): Promise<Id<"items">> => {
-  requireItemCapacity(args.workspaceId);
+  await requireItemCapacity(args.workspaceId);
   let areaId = args.areaId;
   let parentId = args.parentId;
   if (parentId) {
-    const parent = itemOrThrow(parentId);
+    const [parent] = await select<ItemView>("SELECT * FROM items WHERE _id=?", [parentId]);
+    if (!parent) throw new Error("Parent Item not found.");
     if (
       parent.workspaceId !== args.workspaceId ||
       parent.parentId ||
@@ -349,7 +357,7 @@ const create = async (
     ],
   );
   await setItemTags(itemId, args.workspaceId, args.tags);
-  await reload();
+  await automations.itemChanged(itemId, true, undefined, provenance);
   return itemId;
 };
 
@@ -358,8 +366,10 @@ const update = async (
     itemId: Id<"items">;
     expectedUpdatedAt?: number;
   } & ItemInput,
+  provenance: ItemProvenance = { origin: "user" },
 ): Promise<null> => {
   const item = itemOrThrow(args.itemId);
+  const previous = await readPersistedItem(args.itemId);
   const currentFamily = family(item);
   let areaId = args.areaId;
   let parentId = args.parentId;
@@ -420,7 +430,7 @@ const update = async (
     }
   }
   await setItemTags(item._id, item.workspaceId, args.tags);
-  await reload();
+  await automations.itemChanged(item._id, false, previous?.status, provenance);
   return null;
 };
 
@@ -430,12 +440,13 @@ const setTaskDone = async (args: {
 }): Promise<null> => {
   const item = itemOrThrow(args.itemId);
   if (item.type !== "Task") throw new Error("Only Tasks can be completed.");
+  const previous = await readPersistedItem(item._id);
   await run("UPDATE items SET status = ?, updatedAt = ? WHERE _id = ?", [
     args.done ? "Done" : "Todo",
     Date.now(),
     item._id,
   ]);
-  await reload();
+  await automations.itemChanged(item._id, false, previous?.status);
   return null;
 };
 
@@ -454,7 +465,6 @@ const setArchived = async (args: {
       member._id,
     ]);
   }
-  await reload();
   return null;
 };
 
@@ -480,7 +490,6 @@ const remove = async (args: {
     await run("DELETE FROM itemTags WHERE itemId = ?", [member._id]);
     await run("DELETE FROM items WHERE _id = ?", [member._id]);
   }
-  await reload();
   return null;
 };
 
@@ -534,7 +543,6 @@ const areasCreate = async (
       now,
     ],
   );
-  await reload();
   return areaId;
 };
 
@@ -557,7 +565,6 @@ const areasUpdate = async (
       area._id,
     ],
   );
-  await reload();
   return null;
 };
 
@@ -572,7 +579,6 @@ const areasSetArchived = async (args: {
     Date.now(),
     area._id,
   ]);
-  await reload();
   return null;
 };
 
@@ -606,7 +612,6 @@ const areasRemove = async (args: {
     await run("DELETE FROM items WHERE _id = ?", [item._id]);
   }
   await run("DELETE FROM areas WHERE _id = ?", [area._id]);
-  await reload();
   return null;
 };
 
@@ -653,7 +658,6 @@ const tagsRename = async (args: {
     clean.normalizedName,
     tag._id,
   ]);
-  await reload();
   return null;
 };
 
@@ -664,7 +668,6 @@ const tagsRemove = async (args: { tagId: Id<"tags"> }): Promise<null> => {
     throw new Error("Remove this Tag from its Items before deleting it.");
   }
   await run("DELETE FROM tags WHERE _id = ?", [tag._id]);
-  await reload();
   return null;
 };
 
@@ -724,7 +727,6 @@ const workspacesCreate = async (args: {
     );
   }
   await setActiveWorkspace(profile._id, workspaceId);
-  await reload();
   return workspaceId;
 };
 
@@ -742,7 +744,6 @@ const workspacesRename = async (args: {
     Date.now(),
     workspace._id,
   ]);
-  await reload();
   return null;
 };
 
@@ -757,7 +758,6 @@ const workspacesSelect = async (args: {
   if (!workspace) throw new Error("Workspace not found.");
   if (workspace.archived) throw new Error("Restore this Workspace first.");
   await setActiveWorkspace(profile._id, workspace._id);
-  await reload();
   return null;
 };
 
@@ -788,7 +788,6 @@ const workspacesSetArchived = async (args: {
     );
     await setActiveWorkspace(profile._id, next?._id ?? null);
   }
-  await reload();
   return null;
 };
 
@@ -837,6 +836,12 @@ const workspacesRemove = async (args: {
     throw new Error("This Workspace is too large for immediate deletion.");
   }
   await run("DELETE FROM itemTags WHERE workspaceId = ?", [workspace._id]);
+  await run("DELETE FROM templateInstances WHERE workspaceId = ?", [workspace._id]);
+  await run("DELETE FROM templates WHERE workspaceId = ?", [workspace._id]);
+  await run("DELETE FROM projectPlanTasks WHERE projectId IN (SELECT _id FROM projects WHERE workspaceId=?)", [workspace._id]);
+  for (const table of ["obligationReviews", "itemMutationEvents", "recurrenceOccurrences", "recurrenceSchedules", "automationRuns", "automations", "projectSources", "projectCheckpoints", "projects", "paymentAllocations", "obligationPayments", "obligationInvoices", "obligationFollowups", "commitments", "obligationDocuments", "engagements", "attentionFeedback", "itemEstimates", "habitGoalLinks", "activityGoalLinks", "activityRevisions", "activityEntries", "habitDayMarks", "habitVersions", "goalVersions", "habits", "goals"]) {
+    await run(`DELETE FROM ${table} WHERE workspaceId=?`, [workspace._id]);
+  }
   await run("DELETE FROM items WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM tags WHERE workspaceId = ?", [workspace._id]);
   await run("DELETE FROM areas WHERE workspaceId = ?", [workspace._id]);
@@ -844,14 +849,13 @@ const workspacesRemove = async (args: {
   if (profile.activeWorkspaceId === workspace._id) {
     await setActiveWorkspace(profile._id, null);
   }
-  await reload();
   return null;
 };
 
 // ----------------------------------------------------------------- profiles
 
 /** Creates the singleton local profile + "My Life" workspace on first launch. */
-export async function ensureProfile(): Promise<void> {
+async function bootstrapProfile(): Promise<void> {
   const now = Date.now();
   let profiles = await select<Record<string, unknown>>(
     "SELECT * FROM profiles LIMIT 1",
@@ -908,7 +912,29 @@ export async function ensureProfile(): Promise<void> {
     }
   }
 
-  await reload();
+}
+
+let remoteMutation: ((name: string, args: unknown) => Promise<{ result: unknown; state: import('./store').DbState; epoch: string; revision: number }>) | undefined;
+export function enableRemoteMutations(executor: typeof remoteMutation): void { remoteMutation = executor; }
+
+function transactional<A, R>(name: string, mutation: (args: A) => Promise<R>): (args: A) => Promise<R> {
+  return async (args) => {
+    if (!remoteMutation) {
+      if (!hasStorageAdapter()) throw new Error("The local service is not connected");
+      return transaction(async () => {
+        const result = await mutation(args);
+        await recurrence.afterMutation(name, args, result);
+        return result;
+      }, reload);
+    }
+    const response = await remoteMutation(name, toTransportValue(args));
+    applySnapshot(response);
+    return response.result as R;
+  };
+}
+
+export function ensureProfile(): Promise<void> {
+  return transaction(bootstrapProfile, reload);
 }
 
 const profilesCurrent = (): ProfileSummary | undefined => {
@@ -927,7 +953,69 @@ const profilesCurrent = (): ProfileSummary | undefined => {
 
 // ---------------------------------------------------------------------- api
 
+const templates = createTemplates(create);
+const recurrence = createRecurrence(create);
+const automations = createAutomations({ createItem: create, applyTemplate: templates.apply, updateItem: update });
+const projects = createProjects({ createItem: create });
+const obligations = createObligations(create, update);
+const attention = createAttention();
+const habits = createHabits({ onTargetReached: automations.onTargetReached });
+
+// Service-only entry point: the clock is never accepted from remote clients.
+export function tickRecurring(now = Date.now()) {
+  return transaction(() => recurrence.tick({ now }), reload);
+}
+export function runProductivityTasks(now = Date.now()) {
+  return transaction(async () => {
+    const [before] = await select<{ changes: number }>("SELECT total_changes() AS changes");
+    await recurrence.tick({ now });
+    await automations.tick({ now });
+    const [after] = await select<{ changes: number }>("SELECT total_changes() AS changes");
+    return after.changes - before.changes;
+  }, reload);
+}
+
 export const api = {
+  habits: { list: listHabits, details: habitDetails, save: transactional('habits.save', habits.saveHabit), mark: transactional('habits.mark', habits.mark) },
+  goals: { list: listGoals, details: goalDetails, save: transactional('goals.save', habits.saveGoal) },
+  activity: { list: listActivities, log: transactional('activity.log', habits.log), edit: transactional('activity.edit', habits.edit), void: transactional('activity.void', habits.voidActivity) },
+  attention: { build: buildAttention, feedback: transactional('attention.feedback', attention.feedback), estimate: transactional('attention.estimate', attention.estimate) },
+  automations: {
+    list: automations.list, runs: automations.runs, recipes: automations.recipes, preview: automations.preview,
+    save: transactional('automations.save', automations.save),
+    setEnabled: transactional('automations.setEnabled', automations.setEnabled),
+    remove: transactional('automations.remove', automations.remove),
+    retry: transactional('automations.retry', automations.retry),
+    checkpoint: transactional('automations.checkpoint', automations.checkpoint),
+  },
+  projects: {
+    list: listProjects, sources: listProjectSources, checkpoints: listProjectCheckpoints, resume: resumeProject, report: reportProject,
+    create: transactional('projects.create', projects.create), update: transactional('projects.update', projects.update),
+    checkpoint: transactional('projects.checkpoint', projects.checkpoint), addSource: transactional('projects.addSource', projects.addSource),
+    scan: transactional('projects.scan', projects.scan), acceptPlan: transactional('projects.acceptPlan', projects.acceptPlan),
+    removeSource: transactional('projects.removeSource', projects.removeSource), remove: transactional('projects.remove', projects.remove),
+  },
+  obligations: {
+    list: listEngagements, details: obligationDetails,
+    create: transactional('obligations.create', obligations.create), addDocument: transactional('obligations.addDocument', obligations.addDocument),
+    extract: transactional('obligations.extract', obligations.extract), review: transactional('obligations.review', obligations.review),
+    addInvoice: transactional('obligations.addInvoice', obligations.addInvoice), recordPayment: transactional('obligations.recordPayment', obligations.recordPayment),
+    allocate: transactional('obligations.allocate', obligations.allocate), createFollowup: transactional('obligations.createFollowup', obligations.createFollowup),
+  },
+  recurrence: {
+    list: listSchedules,
+    history: listOccurrences,
+    save: transactional('recurrence.save', recurrence.save),
+    control: transactional('recurrence.control', recurrence.control),
+  },
+  templates: {
+    list: listTemplates,
+    preview: previewTemplate,
+    save: transactional('templates.save', templates.save),
+    saveFamily: transactional('templates.saveFamily', templates.saveFamily),
+    apply: transactional('templates.apply', templates.apply),
+    remove: transactional('templates.remove', templates.remove),
+  },
   items: {
     list,
     listArchived,
@@ -937,38 +1025,38 @@ export const api = {
     search,
     get,
     removalImpact,
-    quickCapture,
-    create,
-    update,
-    setTaskDone,
-    setArchived,
-    remove,
+    quickCapture: transactional('items.quickCapture', quickCapture),
+    create: transactional('items.create', create),
+    update: transactional('items.update', update),
+    setTaskDone: transactional('items.setTaskDone', setTaskDone),
+    setArchived: transactional('items.setArchived', setArchived),
+    remove: transactional('items.remove', remove),
   },
   areas: {
     list: areasList,
     listArchived: areasListArchived,
     get: areasGet,
     removalImpact: areasRemovalImpact,
-    create: areasCreate,
-    update: areasUpdate,
-    setArchived: areasSetArchived,
-    remove: areasRemove,
+    create: transactional('areas.create', areasCreate),
+    update: transactional('areas.update', areasUpdate),
+    setArchived: transactional('areas.setArchived', areasSetArchived),
+    remove: transactional('areas.remove', areasRemove),
   },
   tags: {
     list: tagsList,
     listWithCounts: tagsListWithCounts,
-    rename: tagsRename,
-    remove: tagsRemove,
+    rename: transactional('tags.rename', tagsRename),
+    remove: transactional('tags.remove', tagsRemove),
   },
   workspaces: {
     list: workspacesList,
     listArchived: workspacesListArchived,
     removalImpact: workspacesRemovalImpact,
-    create: workspacesCreate,
-    rename: workspacesRename,
-    select: workspacesSelect,
-    setArchived: workspacesSetArchived,
-    remove: workspacesRemove,
+    create: transactional('workspaces.create', workspacesCreate),
+    rename: transactional('workspaces.rename', workspacesRename),
+    select: transactional('workspaces.select', workspacesSelect),
+    setArchived: transactional('workspaces.setArchived', workspacesSetArchived),
+    remove: transactional('workspaces.remove', workspacesRemove),
   },
   profiles: {
     bootstrap: ensureProfile,

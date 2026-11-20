@@ -3,11 +3,11 @@ import {
   Show,
   createEffect,
   createSignal,
-  onSettled,
   untrack,
   type Accessor,
   type Element,
 } from "solid-js";
+import { createEventListener } from "@solid-primitives/event-listener";
 import type { Id } from "../../local/types";
 import { Icon, type IconName } from "../../Icon";
 import {
@@ -22,6 +22,10 @@ import {
 import { useItemPanelRoute } from "./routing";
 import { itemIcon, itemStatusLabel, itemTypes, priorityLabel } from "./types";
 import "./ItemInspector.css";
+import { TemplateSaveControl } from "./TemplateSaveControl";
+import { RecurrenceControl } from "./RecurrenceControl";
+import { CheckpointControl } from "./CheckpointControl";
+import { ActivityLogControl } from "./ActivityLogControl";
 
 const statuses: ItemStatus[] = ["Todo", "In Progress", "Done"];
 
@@ -59,12 +63,8 @@ export function ItemInspector(props: { docked: boolean }) {
     wasVisible = open;
   });
 
-  onSettled(() => {
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && visible()) panel.close();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+  createEventListener(() => window, "keydown", (event) => {
+    if (event.key === "Escape" && visible()) panel.close();
   });
 
   return (
@@ -309,6 +309,7 @@ function ItemForm(props: {
         onClose={props.onClose}
       />
       <form class="item-form" onSubmit={submit}>
+        <Show when={!props.item}><a href="/app/templates" onClick={props.onClose}>Start from a template</a></Show>
         <Show when={formError() ?? items.error()}>
           {(message) => (
             <p class="item-panel-error" role="alert">
@@ -657,6 +658,10 @@ function ItemViewPanel(props: {
           </section>
         </Show>
 
+        <Show when={!item().archived && !item().parentId}><TemplateSaveControl item={item()} /></Show>
+        <Show when={!item().archived && ["Task", "Income", "Expense"].includes(item().type ?? "")}><RecurrenceControl item={item()} /></Show>
+        <Show when={!item().archived && item().type === "Task"}><ActivityLogControl item={item()} /></Show>
+        <Show when={!item().archived && !item().parentId}><CheckpointControl item={item()} /></Show>
         <footer class="item-view-actions">
           <Show when={!item().archived}>
             <button type="button" onClick={props.onEdit}>

@@ -1,33 +1,38 @@
-import { Show, createSignal, onSettled, type ParentProps } from "solid-js";
-import { ensureProfile } from "./api";
+import { Show, createEffect, createMemo, createSignal, type ParentProps } from "solid-js";
+import { enableRemoteMutations } from "./api";
+import { applySnapshot } from "./store";
+import { callMutation, watchState, type StateUpdate } from "./server-functions";
 import { toError } from "./query";
 
-/**
- * Opens the local database once, creates the profile + default Workspace on
- * first launch, then renders the app. Replaces the web app's AuthProvider.
- */
+/** Wait for the local service's first snapshot before rendering the app. */
 export function LocalProvider(props: ParentProps) {
   const [ready, setReady] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
-  const boot = async () => {
-    try {
-      await ensureProfile();
+  const [attempt, setAttempt] = createSignal(0);
+  const snapshot = createMemo<StateUpdate | undefined>(() => {
+    attempt();
+    return watchState();
+  }, { ssrSource: "client", loadingValue: undefined });
+
+  createEffect(snapshot, {
+    effect(update) {
+      if (!update) return;
+      applySnapshot(update);
+      enableRemoteMutations(callMutation);
       setError(null);
       setReady(true);
-    } catch (reason) {
+    },
+    error(reason) {
       setError(toError(reason).message);
-    }
-  };
-
-  onSettled(() => {
-    void boot();
+      setReady(false);
+    },
   });
 
   const retry = () => {
     setError(null);
     setReady(false);
-    void boot();
+    setAttempt((previous) => previous + 1);
   };
 
   return (
